@@ -18,7 +18,7 @@ pub enum NoteError {
     InvalidNoteName,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
 pub enum NoteName {
     C, D, E, F, G, A, B,
 }
@@ -73,6 +73,11 @@ impl NoteName {
             6 => NoteName::B,
             _ => panic!("Rust's Euclidian remainder function is broken")
         }
+    }
+
+    fn interval_size(&self, note_above: &Self) -> IntervalSize {
+        let size = (note_above.diatonic_scale_degree() - self.diatonic_scale_degree()).rem_euclid(DEGREES_IN_DIATONIC_SCALE as isize);
+        IntervalSize::from_diatonic_size(size as usize)
     }
 }
 
@@ -330,16 +335,11 @@ impl Interval {
     }
 
     pub fn from_notes(lower: &Note, higher: &Note) -> Interval {
-        let diatonic_span = higher.name.diatonic_scale_degree() - lower.name.diatonic_scale_degree();
-        let diatonic_span = diatonic_span.rem_euclid(DEGREES_IN_DIATONIC_SCALE as isize);
-        let size = IntervalSize::from_diatonic_size(diatonic_span as usize);
-        let chromatic_distance = higher.chromatic_scale_degree() - lower.chromatic_scale_degree();
-        let chromatic_distance = chromatic_distance.rem_euclid(DEGREES_IN_CHROMATIC_SCALE as isize);
-        let quality = IntervalQuality::from_chromatic_span(&size, chromatic_distance);
-        Interval {
-            size,
-            quality
-        }
+        let size = NoteName::interval_size(&lower.name, &higher.name);
+        let distance_between_white_keys = (higher.name.chromatic_scale_degree() - lower.name.chromatic_scale_degree()).rem_euclid(DEGREES_IN_CHROMATIC_SCALE as isize);
+        let chromatic_delta = -lower.accidental.chromatic_offset() + distance_between_white_keys + higher.accidental.chromatic_offset();
+        let quality = IntervalQuality::from_chromatic_span(&size, chromatic_delta);
+        Interval { size, quality }
     }
 }
 
@@ -395,6 +395,10 @@ mod test_note_names {
         assert_eq!(Interval::new(Fifth, Diminished(1))?, Interval::from_notes(&Note::from_str("A")?, &Note::from_str("Eb")?));
         assert_eq!(Interval::new(Fourth, Augmented(1))?, Interval::from_notes(&Note::from_str("Eb")?, &Note::from_str("A")?));
         assert_eq!(Interval::new(Fifth, Diminished(1))?, Interval::from_notes(&Note::from_str("Eb")?, &Note::from_str("Bbb")?));
+        assert_eq!(Interval::new(Unison, Diminished(1))?, Interval::from_notes(&Note::from_str("C")?, &Note::from_str("Cb")?));
+        assert_eq!(Interval::new(Unison, Diminished(2))?, Interval::from_notes(&Note::from_str("C")?, &Note::from_str("Cbb")?));
+        assert_eq!(Interval::new(Unison, Diminished(1))?, Interval::from_notes(&Note::from_str("G#")?, &Note::from_str("G")?));
+        assert_eq!(Interval::new(Third, Diminished(7))?, Interval::from_notes(&Note::from_str("B")?, &Note::from_str("Dbbbbbbb")?));
         Ok(())
     }
 
