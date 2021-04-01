@@ -425,9 +425,13 @@ pub struct PitchedNote {
     octave: isize
 }
 
+/// Represents a note in absolute pitch space, known as [Scientific Pitch](https://en.wikipedia.org/wiki/Scientific_pitch_notation).
+/// Each instance of the struct will contain a note and its corresponding octave. Middle C is C<sub>4</sub> in this implementation.
+/// Keep in mind that the letter name of the note is what determines its octave, i.e. C<sub>5</sub> and C&#9837;<sub>5</sub> are a 
+/// half step apart. Functions are also provided to convert between scientific pitch and MIDI numbering.
 impl PitchedNote {
-    pub fn from_note(note: &Note, octave: isize) -> PitchedNote {
-        PitchedNote { note: note.clone(), octave }
+    pub fn from_note(note: Note, octave: isize) -> PitchedNote {
+        PitchedNote { note, octave }
     }
 
     pub fn new(name: NoteName, accidental: Accidental, octave: isize) -> PitchedNote {
@@ -445,15 +449,21 @@ impl PitchedNote {
         Ok(PitchedNote { note, octave })
     }
 
+    /// Converts a `PitchedNote` to its corresponding number in MIDI, where A<sub>0</sub> (the lowest note
+    /// on a standard piano) is 21. The octave of the note is determined by its letter name, meaning for
+    /// example that C<sub>1</sub> is 24 and C&#9837;<sub>1</sub> is 23, even though B<sub>0</sub> is also 23.
     pub fn midi_number(&self) -> isize {
-        let chromatic_scale_degree = self.note.chromatic_scale_degree();
-        C_ZERO_MIDI_NOTE_NUMBER + (DEGREES_IN_CHROMATIC_SCALE as isize * self.octave) + chromatic_scale_degree
+        let base = self.note.name.chromatic_scale_degree();
+        let offset = self.note.accidental.chromatic_offset();
+        C_ZERO_MIDI_NOTE_NUMBER + (DEGREES_IN_CHROMATIC_SCALE as isize * self.octave) + base + offset
     }
 
+    /// The number of half-steps (semitones) separating two pitches
     pub fn chromatic_distance(&self, other: &Self) -> usize {
         (self.midi_number() - other.midi_number()).abs() as usize
     }
 
+    /// The interval between one `PitchedNote` and another, without any octave information
     pub fn simple_interval(&self, other: &Self) -> Interval {
         let (lower, higher) = if let Ordering::Less = self.cmp(other) {
             (self, other)
@@ -463,9 +473,20 @@ impl PitchedNote {
         Interval::from_notes(&lower.note, &higher.note)
     }
 
+    /// The interval between one `PitchedNote` and another, including how many octaves separate them. Notes in the
+    /// same octave (less than 12 half-steps apart) will have an octave of zero. Of note is that there is **no**
+    /// diminished octave in this naming system. The distance between, say, G&sharp;<sub>5</sub> and 
+    /// G&natural;<sub>6</sub> is indicated as a diminished unison with an octave of one. This was an intentional
+    /// choice, made because an octave is equivalent to a unison for analytical purposes.
     pub fn compound_interval(&self, other: &Self) -> CompoundInterval {
         let interval = self.simple_interval(other);
-        let compound_octaves = self.chromatic_distance(other) / DEGREES_IN_CHROMATIC_SCALE;
+        // calculate the octave using only the white keys
+        let white_key_chromatic_distance = {
+            let lower_wk_midi = self.note.name.chromatic_scale_degree() + (DEGREES_IN_CHROMATIC_SCALE as isize * self.octave);
+            let higher_wk_midi = other.note.name.chromatic_scale_degree() + (DEGREES_IN_CHROMATIC_SCALE as isize * other.octave);
+            (higher_wk_midi - lower_wk_midi).abs() as usize
+        };
+        let compound_octaves = white_key_chromatic_distance / DEGREES_IN_CHROMATIC_SCALE;
         CompoundInterval::new(interval, compound_octaves)
     }
 }
@@ -491,6 +512,14 @@ pub struct CompoundInterval {
 impl CompoundInterval {
     pub fn new(interval: Interval, compound_octaves: usize) -> CompoundInterval {
         CompoundInterval { interval, compound_octaves }
+    }
+
+    pub fn from_str(input: &str) -> Result<CompoundInterval, IntervalError> {
+        // again avoiding making a regex...
+        let pitch_index = input.find(|c: char| c.is_ascii_digit() || c == '-').ok_or(IntervalError::InvalidToken)?;
+        let interval = Interval::from_str(&input[..pitch_index])?;
+        let compound_octaves = input[pitch_index..].parse().map_err(|_| IntervalError::InvalidToken)?;
+        Ok(CompoundInterval::new(interval, compound_octaves))
     }
 
     pub fn simple_interval(&self) -> Interval {
@@ -524,7 +553,9 @@ mod pitched_note_tests {
 
     #[test]
     fn compound_interval() -> Result<(), Error> {
-        println!("{:?}", PitchedNote::from_str("G#5")?.compound_interval(&PitchedNote::from_str("G6")?));
+        assert_eq!(CompoundInterval::from_str("dU1")?, PitchedNote::from_str("G#5")?.compound_interval(&PitchedNote::from_str("G6")?));
+        println!("{} vs {}", PitchedNote::from_str("B5")?.midi_number(), PitchedNote::from_str("B#5")?.midi_number());
+        assert_eq!(CompoundInterval::from_str("aU0")?, PitchedNote::from_str("B5")?.compound_interval(&PitchedNote::from_str("B#5")?));
         Ok(())
     }
 }
