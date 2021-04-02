@@ -2,11 +2,25 @@ use std::{array::IntoIter, convert::TryInto, usize};
 
 use itertools::Itertools;
 
+use crate::primitives::Note;
+
 #[derive(Debug)]
 pub enum ToneRowError{
     DuplicateElements,
     TooBig(usize),
 }
+
+#[derive(Debug)]
+pub enum Convert {
+    Flats,
+    Sharps,
+}
+
+// impl Convert {
+//     fn to_note(&self, n: usize) -> Note {
+//         match n 
+//     }
+// }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ToneRow<const D: usize> {
@@ -44,16 +58,16 @@ impl<const D: usize> ToneRow<D> {
         Ok(ToneRow { row })
     }
 
-    /// Retrieve a prime row as a numeric slice. If you need the retrograde, call [`rev`] on it.
+    /// Retrieve a prime row. If you need the retrograde, call [`rev`] on it.
     ///
     /// [`rev`]: https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.rev
     /// # Panics
     /// Panics if the index is out of bounds.
-    pub fn p(&self, index: usize) -> &[usize; D] {
+    pub fn p(&self, index: usize) -> [usize; D] {
         let initial = self.row[0][0];
         for i in 0..D {
             if self.row[i][0] == (initial + index) % 12 {
-                return &self.row[i];
+                return self.row[i].clone();
             }
         }
         panic!("Could not find desired prime row; The index may be out of bounds.");
@@ -96,7 +110,7 @@ mod test {
     #[test]
     pub fn test_p() -> Result<(), ToneRowError> {
         let tr = ToneRow::new([5,7,9,11,3,2,6,8,10,1,0,4])?;
-        assert_eq!(tr.p(1), &[6,8,10,0,4,3,7,9,11,2,1,5]);
+        assert_eq!(tr.p(1), [6,8,10,0,4,3,7,9,11,2,1,5]);
         Ok(())
     }
 

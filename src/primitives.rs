@@ -1,11 +1,10 @@
-use std::{cmp::Ordering, ops::{Add, Mul, Sub}, usize};
+use std::{cmp::Ordering, ops::{Add, Sub}, usize};
 
 use derive_more::From;
 use regex::Regex;
 use lazy_static::lazy_static;
 
-pub const DEGREES_IN_CHROMATIC_SCALE: usize = 12;
-pub const DEGREES_IN_DIATONIC_SCALE: usize = 7;
+use crate::{CHROMATIC_SCALE, C_ZERO_MIDI, DIATONIC_SCALE};
 
 /// Initialize an [`Interval`] from either the [`Interval::from_str`] constructor or the [`Interval::new`] constructor.
 /// In either case, the return type is a [`Result`] of [`Interval`] or [`IntervalError`].
@@ -74,7 +73,7 @@ impl NoteName {
     }
 
     fn from_diatonic_scale_degree(degree: isize) -> NoteName {
-        let degree = degree.rem_euclid(DEGREES_IN_DIATONIC_SCALE as isize);
+        let degree = degree.rem_euclid(DIATONIC_SCALE as isize);
         match degree {
             0 => NoteName::C,
             1 => NoteName::D,
@@ -89,7 +88,7 @@ impl NoteName {
 
     fn interval_size(&self, note_above: &Self) -> IntervalSize {
         let size = note_above.diatonic_scale_degree() as isize - self.diatonic_scale_degree() as isize;
-        let size = size.rem_euclid(DEGREES_IN_DIATONIC_SCALE as isize);
+        let size = size.rem_euclid(DIATONIC_SCALE as isize);
         IntervalSize::from_diatonic_size(size as usize)
     }
 }
@@ -188,7 +187,7 @@ impl Note {
     pub fn chromatic_scale_degree(&self) -> usize {
         let chromatic_degree = self.name.chromatic_scale_degree() as isize;
         let signed_position = chromatic_degree + self.accidental.chromatic_offset();
-        signed_position.rem_euclid(DEGREES_IN_CHROMATIC_SCALE as isize) as usize
+        signed_position.rem_euclid(CHROMATIC_SCALE as isize) as usize
     }
 }
 
@@ -434,7 +433,7 @@ impl Interval {
         let size = NoteName::interval_size(&lower.name, &higher.name);
         // white key distance
         let wk_distance = higher.name.chromatic_scale_degree() as isize - lower.name.chromatic_scale_degree() as isize;
-        let wk_distance = wk_distance.rem_euclid(DEGREES_IN_CHROMATIC_SCALE as isize) as isize;
+        let wk_distance = wk_distance.rem_euclid(CHROMATIC_SCALE as isize) as isize;
         let chromatic_delta = -lower.accidental.chromatic_offset() + wk_distance + higher.accidental.chromatic_offset();
         let quality = IntervalQuality::from_chromatic_span(&size, chromatic_delta);
         Interval { size, quality }
@@ -472,7 +471,7 @@ impl Add<&Interval> for &Interval {
 
     fn add(self, rhs: &Interval) -> Self::Output {
         let size = &self.size + &rhs.size;
-        let span = (self.chromatic_size() + rhs.chromatic_size()).rem_euclid(DEGREES_IN_CHROMATIC_SCALE as isize);
+        let span = (self.chromatic_size() + rhs.chromatic_size()).rem_euclid(CHROMATIC_SCALE as isize);
         let quality = IntervalQuality::from_chromatic_span(&size, span);
         Interval { size, quality }
     }
@@ -588,9 +587,6 @@ mod test_note_names {
     }
 }
 
-pub const A_ZERO_MIDI_NOTE_NUMBER: isize = 21;
-pub const C_ZERO_MIDI_NOTE_NUMBER: isize = 12;
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct PitchedNote {
     note: Note,
@@ -627,7 +623,7 @@ impl PitchedNote {
     pub fn midi_number(&self) -> isize {
         let base = self.note.name.chromatic_scale_degree() as isize;
         let offset = self.note.accidental.chromatic_offset();
-        C_ZERO_MIDI_NOTE_NUMBER + (DEGREES_IN_CHROMATIC_SCALE as isize * self.octave) + base + offset
+        C_ZERO_MIDI + (CHROMATIC_SCALE as isize * self.octave) + base + offset
     }
 
     /// The number of half-steps (semitones) separating two pitches
@@ -654,11 +650,11 @@ impl PitchedNote {
         let interval = self.simple_interval(other);
         // calculate the octave using only the white keys
         let white_key_chromatic_distance = {
-            let lower_wk_midi = self.note.name.chromatic_scale_degree() as isize + (DEGREES_IN_CHROMATIC_SCALE as isize * self.octave);
-            let higher_wk_midi = other.note.name.chromatic_scale_degree() as isize + (DEGREES_IN_CHROMATIC_SCALE as isize * other.octave);
+            let lower_wk_midi = self.note.name.chromatic_scale_degree() as isize + (CHROMATIC_SCALE as isize * self.octave);
+            let higher_wk_midi = other.note.name.chromatic_scale_degree() as isize + (CHROMATIC_SCALE as isize * other.octave);
             (higher_wk_midi - lower_wk_midi).abs() as usize
         };
-        let compound_octaves = white_key_chromatic_distance / DEGREES_IN_CHROMATIC_SCALE;
+        let compound_octaves = white_key_chromatic_distance / CHROMATIC_SCALE;
         CompoundInterval::new(interval, compound_octaves)
     }
 }
