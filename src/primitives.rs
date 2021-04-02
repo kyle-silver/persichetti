@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, usize};
+use std::{cmp::Ordering, ops::Add, usize};
 
 use derive_more::From;
 use regex::Regex;
@@ -37,7 +37,7 @@ impl NoteName {
         }
     }
 
-    fn diatonic_scale_degree(&self) -> isize {
+    fn diatonic_scale_degree(&self) -> usize {
         match self {
             NoteName::C => 0,
             NoteName::D => 1,
@@ -49,7 +49,7 @@ impl NoteName {
         }
     }
 
-    fn chromatic_scale_degree(&self) -> isize {
+    fn chromatic_scale_degree(&self) -> usize {
         match self {
             NoteName::C => 0,
             NoteName::D => 2,
@@ -76,8 +76,20 @@ impl NoteName {
     }
 
     fn interval_size(&self, note_above: &Self) -> IntervalSize {
-        let size = (note_above.diatonic_scale_degree() - self.diatonic_scale_degree()).rem_euclid(DEGREES_IN_DIATONIC_SCALE as isize);
+        let size = note_above.diatonic_scale_degree() as isize - self.diatonic_scale_degree() as isize;
+        let size = size.rem_euclid(DEGREES_IN_DIATONIC_SCALE as isize);
         IntervalSize::from_diatonic_size(size as usize)
+    }
+}
+
+impl Add<&IntervalSize> for &NoteName {
+    type Output = NoteName;
+
+    /// Simple, &ldquo;white key only&rdquo; computations without any consideration for accidentals.
+    /// This is analogous to traversing a C Major scale.
+    fn add(self, size: &IntervalSize) -> Self::Output {
+        let degree = self.diatonic_scale_degree() + size.diatonic_size();
+        NoteName::from_diatonic_scale_degree(degree as isize)
     }
 }
 
@@ -117,6 +129,14 @@ impl Note {
         Note { name, accidental }
     }
 
+    pub fn name(&self) -> &NoteName {
+        &self.name
+    }
+
+    pub fn accidental(&self) -> &Accidental {
+        &self.accidental
+    }
+
     pub fn from_str(note: &str) -> Result<Note, NoteError> {
         lazy_static! {
             static ref RE: Regex =  Regex::new("^(?P<note>[A-Ga-g])((?P<sharp>(#|x+|#x+))|(?P<flat>b+)|(?P<nat>nat))?$").unwrap();
@@ -145,20 +165,25 @@ impl Note {
         }
     }
 
-    pub fn chromatic_scale_degree(&self) -> isize {
-        let chromatic_degree = self.name.chromatic_scale_degree();
+    pub fn chromatic_scale_degree(&self) -> usize {
+        let chromatic_degree = self.name.chromatic_scale_degree() as isize;
         let signed_position = chromatic_degree + self.accidental.chromatic_offset();
-        signed_position.rem_euclid(DEGREES_IN_CHROMATIC_SCALE as isize)
+        signed_position.rem_euclid(DEGREES_IN_CHROMATIC_SCALE as isize) as usize
     }
+}
 
-    pub fn apply_interval(&self, interval: &Interval) -> Note {
-        let destination_diatonic_scale_degree = self.name.diatonic_scale_degree() + interval.size.diatonic_size();
-        let destination_name = NoteName::from_diatonic_scale_degree(destination_diatonic_scale_degree);
-        let root_chromatic_position = self.chromatic_scale_degree() as isize;
-        let destination_chromatic_position = (root_chromatic_position + interval.chromatic_size()) % 12;
-        let destination_accidental_degree = destination_chromatic_position - destination_name.chromatic_scale_degree();
-        let destination_accidental = Accidental::from_isize(destination_accidental_degree);
-        Note::new(destination_name, destination_accidental)
+impl Add<&Interval> for &Note {
+    type Output = Note;
+
+    fn add(self, interval: &Interval) -> Self::Output {
+        // get the "white key" of the output
+        let name = &self.name + &interval.size;
+        // get the pitch (without accidental information) of the output
+        let pitch = (self.chromatic_scale_degree() as isize + interval.chromatic_size()) % 12;
+        // how many degrees does the accdental alter the white key
+        let degree = pitch as isize - name.chromatic_scale_degree() as isize;
+        let accidental = Accidental::from_isize(degree);
+        Note::new(name, accidental)
     }
 }
 
@@ -181,7 +206,7 @@ pub enum IntervalSize {
 }
 
 impl IntervalSize {
-    fn diatonic_size(&self) -> isize {
+    fn diatonic_size(&self) -> usize {
         match self {
             IntervalSize::Unison => 0,
             IntervalSize::Second => 1,
@@ -193,7 +218,7 @@ impl IntervalSize {
         }
     }
 
-    fn chromatic_size(&self) -> isize {
+    fn chromatic_size(&self) -> usize {
         match self {
             IntervalSize::Unison => 0,
             IntervalSize::Second => 2,
@@ -231,7 +256,7 @@ pub enum IntervalQuality {
 impl IntervalQuality {
     fn from_chromatic_span(size: &IntervalSize, span: isize) -> IntervalQuality {
         use IntervalSize::*;
-        let delta = span - size.chromatic_size();
+        let delta = span - size.chromatic_size() as isize;
         match size {
             Unison | Fourth | Fifth => {
                 match delta {
@@ -309,6 +334,14 @@ impl Interval {
         }
     }
 
+    pub fn size(&self) -> &IntervalSize {
+        &self.size
+    }
+
+    pub fn quality(&self) -> &IntervalQuality {
+        &self.quality
+    }
+
     fn chromatic_alteration(&self) -> isize {
         use IntervalSize::*;
         // the panic conditions will be unreachable given the public 
@@ -331,13 +364,15 @@ impl Interval {
     }
 
     fn chromatic_size(&self) -> isize {
-        self.size.chromatic_size() + self.chromatic_alteration()
+        self.size.chromatic_size() as isize + self.chromatic_alteration()
     }
 
     pub fn from_notes(lower: &Note, higher: &Note) -> Interval {
         let size = NoteName::interval_size(&lower.name, &higher.name);
-        let distance_between_white_keys = (higher.name.chromatic_scale_degree() - lower.name.chromatic_scale_degree()).rem_euclid(DEGREES_IN_CHROMATIC_SCALE as isize);
-        let chromatic_delta = -lower.accidental.chromatic_offset() + distance_between_white_keys + higher.accidental.chromatic_offset();
+        // white key distance
+        let wk_distance = higher.name.chromatic_scale_degree() as isize - lower.name.chromatic_scale_degree() as isize;
+        let wk_distance = wk_distance.rem_euclid(DEGREES_IN_CHROMATIC_SCALE as isize) as isize;
+        let chromatic_delta = -lower.accidental.chromatic_offset() + wk_distance + higher.accidental.chromatic_offset();
         let quality = IntervalQuality::from_chromatic_span(&size, chromatic_delta);
         Interval { size, quality }
     }
@@ -346,6 +381,8 @@ impl Interval {
 #[cfg(test)]
 mod test_note_names {
     use super::*;
+    use IntervalSize::*;
+    use IntervalQuality::*;
 
     #[test]
     fn test_chromatic_scale_degree_conversion() -> Result<(), NoteError> {
@@ -358,25 +395,23 @@ mod test_note_names {
     }
 
     #[test]
-    fn note_plus_interval() -> Result<(), Error> {
-        use IntervalSize::*;
-        use IntervalQuality::*;
-        assert_eq!(Note::from_str("G")?, Note::from_str("C")?.apply_interval(&Interval::new(Fifth, Perfect)?));
-        assert_eq!(Note::from_str("G#")?, Note::from_str("C")?.apply_interval(&Interval::new(Fifth, Augmented(1))?));
-        assert_eq!(Note::from_str("Gx")?, Note::from_str("C")?.apply_interval(&Interval::new(Fifth, Augmented(2))?));
-        assert_eq!(Note::from_str("F#")?, Note::from_str("Bb")?.apply_interval(&Interval::new(Fifth, Augmented(1))?));
-        assert_eq!(Note::from_str("Fx")?, Note::from_str("B")?.apply_interval(&Interval::new(Fifth, Augmented(1))?));
-        assert_eq!(Note::from_str("G#")?, Note::from_str("Bb")?.apply_interval(&Interval::new(Sixth, Augmented(1))?));
-        assert_eq!(Note::from_str("Gx")?, Note::from_str("B")?.apply_interval(&Interval::new(Sixth, Augmented(1))?));
-        assert_eq!(Note::from_str("Dbb")?, Note::from_str("C")?.apply_interval(&Interval::new(Second, Diminished(1))?));
-        assert_eq!(Note::from_str("D")?, Note::from_str("B")?.apply_interval(&Interval::new(Third, Minor)?));
-        assert_eq!(Note::from_str("Db")?, Note::from_str("B")?.apply_interval(&Interval::new(Third, Diminished(1))?));
-        assert_eq!(Note::from_str("D#")?, Note::from_str("B")?.apply_interval(&Interval::new(Third, Major)?));
-        assert_eq!(Note::from_str("Dx")?, Note::from_str("B")?.apply_interval(&Interval::new(Third, Augmented(1))?));
-        assert_eq!(Note::from_str("D#x")?, Note::from_str("B")?.apply_interval(&Interval::new(Third, Augmented(2))?));
-        assert_eq!(Note::from_str("C#")?, Note::from_str("C")?.apply_interval(&Interval::new(Unison, Augmented(1))?));
-        assert_eq!(Note::from_str("Cb")?, Note::from_str("C")?.apply_interval(&Interval::new(Unison, Diminished(1))?));
-        assert_eq!(Note::from_str("G")?, Note::from_str("G#")?.apply_interval(&Interval::new(Unison, Diminished(1))?));
+    fn note_plus_interval_trait() -> Result<(), Error> {
+        assert_eq!(Note::from_str("G")?,&Note::from_str("C")? + &Interval::new(Fifth, Perfect)?);
+        assert_eq!(Note::from_str("G#")?, &Note::from_str("C")? + &Interval::new(Fifth, Augmented(1))?);
+        assert_eq!(Note::from_str("Gx")?, &Note::from_str("C")? + &Interval::new(Fifth, Augmented(2))?);
+        assert_eq!(Note::from_str("F#")?, &Note::from_str("Bb")? + &Interval::new(Fifth, Augmented(1))?);
+        assert_eq!(Note::from_str("Fx")?, &Note::from_str("B")? + &Interval::new(Fifth, Augmented(1))?);
+        assert_eq!(Note::from_str("G#")?, &Note::from_str("Bb")? + &Interval::new(Sixth, Augmented(1))?);
+        assert_eq!(Note::from_str("Gx")?, &Note::from_str("B")? + &Interval::new(Sixth, Augmented(1))?);
+        assert_eq!(Note::from_str("Dbb")?, &Note::from_str("C")? + &Interval::new(Second, Diminished(1))?);
+        assert_eq!(Note::from_str("D")?, &Note::from_str("B")? + &Interval::new(Third, Minor)?);
+        assert_eq!(Note::from_str("Db")?, &Note::from_str("B")? + &Interval::new(Third, Diminished(1))?);
+        assert_eq!(Note::from_str("D#")?, &Note::from_str("B")? + &Interval::new(Third, Major)?);
+        assert_eq!(Note::from_str("Dx")?, &Note::from_str("B")? + &Interval::new(Third, Augmented(1))?);
+        assert_eq!(Note::from_str("D#x")?, &Note::from_str("B")? + &Interval::new(Third, Augmented(2))?);
+        assert_eq!(Note::from_str("C#")?, &Note::from_str("C")? + &Interval::new(Unison, Augmented(1))?);
+        assert_eq!(Note::from_str("Cb")?, &Note::from_str("C")? + &Interval::new(Unison, Diminished(1))?);
+        assert_eq!(Note::from_str("G")?, &Note::from_str("G#")? + &Interval::new(Unison, Diminished(1))?);
         Ok(())
     }
 
@@ -453,7 +488,7 @@ impl PitchedNote {
     /// on a standard piano) is 21. The octave of the note is determined by its letter name, meaning for
     /// example that C<sub>1</sub> is 24 and C&#9837;<sub>1</sub> is 23, even though B<sub>0</sub> is also 23.
     pub fn midi_number(&self) -> isize {
-        let base = self.note.name.chromatic_scale_degree();
+        let base = self.note.name.chromatic_scale_degree() as isize;
         let offset = self.note.accidental.chromatic_offset();
         C_ZERO_MIDI_NOTE_NUMBER + (DEGREES_IN_CHROMATIC_SCALE as isize * self.octave) + base + offset
     }
@@ -482,8 +517,8 @@ impl PitchedNote {
         let interval = self.simple_interval(other);
         // calculate the octave using only the white keys
         let white_key_chromatic_distance = {
-            let lower_wk_midi = self.note.name.chromatic_scale_degree() + (DEGREES_IN_CHROMATIC_SCALE as isize * self.octave);
-            let higher_wk_midi = other.note.name.chromatic_scale_degree() + (DEGREES_IN_CHROMATIC_SCALE as isize * other.octave);
+            let lower_wk_midi = self.note.name.chromatic_scale_degree() as isize + (DEGREES_IN_CHROMATIC_SCALE as isize * self.octave);
+            let higher_wk_midi = other.note.name.chromatic_scale_degree() as isize + (DEGREES_IN_CHROMATIC_SCALE as isize * other.octave);
             (higher_wk_midi - lower_wk_midi).abs() as usize
         };
         let compound_octaves = white_key_chromatic_distance / DEGREES_IN_CHROMATIC_SCALE;
