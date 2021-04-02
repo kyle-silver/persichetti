@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, ops::Add, usize};
+use std::{cmp::Ordering, ops::{Add, Mul, Sub}, usize};
 
 use derive_more::From;
 use regex::Regex;
@@ -7,8 +7,8 @@ use lazy_static::lazy_static;
 pub const DEGREES_IN_CHROMATIC_SCALE: usize = 12;
 pub const DEGREES_IN_DIATONIC_SCALE: usize = 7;
 
-/// Initialize an interval from either its string representation or by calling the `Interval` constructor.
-/// In either case, the return type is a `Result<Interval, IntervalError>`.
+/// Initialize an [`Interval`] from either the [`Interval::from_str`] constructor or the [`Interval::new`] constructor.
+/// In either case, the return type is a [`Result`] of [`Interval`] or [`IntervalError`].
 #[macro_export]
 macro_rules! ivl {
     ($token:expr) => {
@@ -105,6 +105,14 @@ impl Add<&IntervalSize> for &NoteName {
     }
 }
 
+impl Add<IntervalSize> for NoteName {
+    type Output = NoteName;
+
+    fn add(self, rhs: IntervalSize) -> Self::Output {
+        &self + &rhs
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Accidental {
     Flat(usize),
@@ -187,6 +195,7 @@ impl Note {
 impl Add<&Interval> for &Note {
     type Output = Note;
 
+    /// Adding an [`Interval`] I to a [`Note`] N will yeild a new note whose distance N is exactly I.
     fn add(self, interval: &Interval) -> Self::Output {
         // get the "white key" of the output
         let name = &self.name + &interval.size;
@@ -199,6 +208,30 @@ impl Add<&Interval> for &Note {
     }
 }
 
+impl Add<Interval> for Note {
+    type Output = Note;
+
+    fn add(self, rhs: Interval) -> Self::Output {
+        &self + &rhs
+    }
+}
+
+impl Sub<&Interval> for &Note {
+    type Output = Note;
+
+    fn sub(self, interval: &Interval) -> Self::Output {
+        self + &interval.inverse()
+    }
+}
+
+impl Sub<Interval> for Note {
+    type Output = Note;
+
+    fn sub(self, rhs: Interval) -> Self::Output {
+        &self - &rhs
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum IntervalError {
     InvalidQualityAndSizeCombination,
@@ -206,7 +239,7 @@ pub enum IntervalError {
     UnsupportedCompoundInterval,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
 pub enum IntervalSize {
     Unison,
     Second,
@@ -253,6 +286,24 @@ impl IntervalSize {
             6 => IntervalSize::Seventh,
             _ => panic!("Modulo operator is broke"),
         }
+    }
+}
+
+
+
+impl Add<&IntervalSize> for &IntervalSize {
+    type Output = IntervalSize;
+
+    fn add(self, rhs: &IntervalSize) -> Self::Output {
+        IntervalSize::from_diatonic_size(self.diatonic_size() + rhs.diatonic_size())
+    }
+}
+
+impl Add<IntervalSize> for IntervalSize {
+    type Output = IntervalSize;
+
+    fn add(self, rhs: IntervalSize) -> Self::Output {
+        &self + &rhs
     }
 }
 
@@ -416,6 +467,25 @@ impl Interval {
     }
 }
 
+impl Add<&Interval> for &Interval {
+    type Output = Interval;
+
+    fn add(self, rhs: &Interval) -> Self::Output {
+        let size = &self.size + &rhs.size;
+        let span = (self.chromatic_size() + rhs.chromatic_size()).rem_euclid(DEGREES_IN_CHROMATIC_SCALE as isize);
+        let quality = IntervalQuality::from_chromatic_span(&size, span);
+        Interval { size, quality }
+    }
+}
+
+impl Add<Interval> for Interval {
+    type Output = Interval;
+
+    fn add(self, rhs: Interval) -> Self::Output {
+       &self + &rhs
+    }
+}
+
 #[cfg(test)]
 mod test_note_names {
     use super::*;
@@ -495,6 +565,27 @@ mod test_note_names {
         assert_eq!(ivl!(Second, Minor)?, ivl!(Seventh, Major)?.inverse());
         Ok(())
     }
+
+    #[test]
+    fn interval_addition() -> Result<(), Error> {
+        // identity
+        assert_eq!(ivl!(Unison, Perfect)?, ivl!(Unison, Perfect)? + ivl!(Unison, Perfect)?);
+        // other things
+        assert_eq!(ivl!(Second, Major)?, ivl!(Unison, Perfect)? + ivl!(Second, Major)?);
+        assert_eq!(ivl!(Third, Major)?, ivl!(Second, Major)? + ivl!(Second, Major)?);
+        assert_eq!(ivl!(Fourth, Perfect)?, ivl!(Third, Major)? + ivl!(Second, Minor)?);
+        assert_eq!(ivl!(Fourth, Augmented(1))?, ivl!(Third, Major)? + ivl!(Second, Major)?);
+        assert_eq!(ivl!(Unison, Perfect)?, ivl!(Fourth, Augmented(1))? + ivl!(Fifth, Diminished(1))?);
+        assert_eq!(ivl!(Unison, Perfect)?, ivl!(Unison, Augmented(1))? + ivl!(Unison, Diminished(1))?);
+        assert_eq!(ivl!(Sixth, Augmented(1))?, ivl!(Seventh, Major)? + ivl!(Seventh, Major)?);
+        // test
+        assert_eq!(ivl!("pU")?, ivl!("M2")? + ivl!("M2")? + ivl!("m2")? + ivl!("M2")? + ivl!("M2")? + ivl!("M2")? + ivl!("m2")?);
+        // augmented triad
+        assert_eq!(ivl!(Fifth, Augmented(1))?, ivl!("M3")? + ivl!("M3")?);
+        // diminished seventh
+        assert_eq!(ivl!(Seventh, Diminished(1))?, ivl!("m3")? +  ivl!("m3")? + ivl!("m3")?);
+        Ok(())
+    }
 }
 
 pub const A_ZERO_MIDI_NOTE_NUMBER: isize = 21;
@@ -506,7 +597,7 @@ pub struct PitchedNote {
     octave: isize
 }
 
-/// Represents a note in absolute pitch space, known as [Scientific Pitch](https://en.wikipedia.org/wiki/Scientific_pitch_notation).
+/// Represents a [`Note`] in absolute pitch space, known as [Scientific Pitch](https://en.wikipedia.org/wiki/Scientific_pitch_notation).
 /// Each instance of the struct will contain a note and its corresponding octave. Middle C is C<sub>4</sub> in this implementation.
 /// Keep in mind that the letter name of the note is what determines its octave, i.e. C<sub>5</sub> and C&#9837;<sub>5</sub> are a 
 /// half step apart. Functions are also provided to convert between scientific pitch and MIDI numbering.
@@ -530,7 +621,7 @@ impl PitchedNote {
         Ok(PitchedNote { note, octave })
     }
 
-    /// Converts a `PitchedNote` to its corresponding number in MIDI, where A<sub>0</sub> (the lowest note
+    /// Converts a [`PitchedNote`] to its corresponding number in MIDI, where A<sub>0</sub> (the lowest note
     /// on a standard piano) is 21. The octave of the note is determined by its letter name, meaning for
     /// example that C<sub>1</sub> is 24 and C&#9837;<sub>1</sub> is 23, even though B<sub>0</sub> is also 23.
     pub fn midi_number(&self) -> isize {
@@ -544,7 +635,7 @@ impl PitchedNote {
         (self.midi_number() - other.midi_number()).abs() as usize
     }
 
-    /// The interval between one `PitchedNote` and another, without any octave information
+    /// The interval between one [`PitchedNote`] and another, without any octave information
     pub fn simple_interval(&self, other: &Self) -> Interval {
         let (lower, higher) = if let Ordering::Less = self.cmp(other) {
             (self, other)
