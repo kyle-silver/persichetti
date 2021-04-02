@@ -7,6 +7,18 @@ use lazy_static::lazy_static;
 pub const DEGREES_IN_CHROMATIC_SCALE: usize = 12;
 pub const DEGREES_IN_DIATONIC_SCALE: usize = 7;
 
+/// Initialize an interval from either its string representation or by calling the `Interval` constructor.
+/// In either case, the return type is a `Result<Interval, IntervalError>`.
+#[macro_export]
+macro_rules! ivl {
+    ($token:expr) => {
+        Interval::from_str($token)
+    };
+    ($size:expr, $quality:expr) => {
+        Interval::new($size, $quality)
+    };
+}
+
 #[derive(Debug, From)]
 pub enum Error {
     Note(NoteError),
@@ -376,6 +388,32 @@ impl Interval {
         let quality = IntervalQuality::from_chromatic_span(&size, chromatic_delta);
         Interval { size, quality }
     }
+
+    /// The inverse of an interval I can be defined as the interval I&prime; such that the sum of I and I&prime; is an octave
+    /// (or unison, in this case)
+    pub fn inverse(&self) -> Interval {
+        use IntervalSize::*;
+        use IntervalQuality::*;
+        let size = match self.size {
+            Unison => Unison,
+            Second => Seventh,
+            Third => Sixth,
+            Fourth => Fifth,
+            Fifth => Fourth,
+            Sixth => Third,
+            Seventh => Second,
+        };
+        let quality = match self.quality {
+            Diminished(degree) => Augmented(degree),
+            Augmented(degree) => Diminished(degree),
+            Minor => Major,
+            Major => Minor,
+            Perfect => Perfect,
+        };
+        // we can bypass the validity checks in the constructor because an inverse will always be valid
+        // so long as the original interval is valid
+        Interval { size, quality }
+    }
 }
 
 #[cfg(test)]
@@ -417,8 +455,6 @@ mod test_note_names {
 
     #[test]
     fn interval_naming() -> Result<(), Error> {
-        use IntervalSize::*;
-        use IntervalQuality::*;
         assert_eq!(Interval::new(Fifth, Perfect)?, Interval::from_notes(&Note::from_str("C")?, &Note::from_str("G")?));
         assert_eq!(Interval::new(Fifth, Perfect)?, Interval::from_notes(&Note::from_str("G")?, &Note::from_str("D")?));
         assert_eq!(Interval::new(Third, Major)?, Interval::from_notes(&Note::from_str("Bb")?, &Note::from_str("D")?));
@@ -439,14 +475,24 @@ mod test_note_names {
 
     #[test]
     fn intervals_from_strings() -> Result<(), Error> {
-        use IntervalSize::*;
-        use IntervalQuality::*;
         // valid
-        assert_eq!(Interval::new(Fifth, Perfect)?, Interval::from_str("p5")?);
-        assert_eq!(Interval::new(Third, Augmented(1))?, Interval::from_str("a3")?);
-        assert_eq!(Interval::new(Seventh, Diminished(2))?, Interval::from_str("dd7")?);
+        assert_eq!(ivl!(Fifth, Perfect)?, Interval::from_str("p5")?);
+        assert_eq!(ivl!(Third, Augmented(1))?, Interval::from_str("a3")?);
+        assert_eq!(ivl!(Seventh, Diminished(2))?, Interval::from_str("dd7")?);
         // invalid
         assert_eq!(Err(IntervalError::InvalidQualityAndSizeCombination), Interval::from_str("mu"));
+        Ok(())
+    }
+
+    #[test]
+    fn inversion() -> Result<(), Error> {
+        // identity
+        assert_eq!(ivl!(Unison, Perfect)?, ivl!(Unison, Perfect)?.inverse());
+        // other stuff...
+        assert_eq!(ivl!(Fourth, Perfect)?, ivl!(Fifth, Perfect)?.inverse());
+        assert_eq!(ivl!(Third, Diminished(1))?, ivl!(Sixth, Augmented(1))?.inverse());
+        assert_eq!(ivl!(Unison, Augmented(1))?, ivl!(Unison, Diminished(1))?.inverse());
+        assert_eq!(ivl!(Second, Minor)?, ivl!(Seventh, Major)?.inverse());
         Ok(())
     }
 }
