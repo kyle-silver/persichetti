@@ -6,6 +6,16 @@ use lazy_static::lazy_static;
 
 use crate::{CHROMATIC_SCALE, C_ZERO_MIDI, DIATONIC_SCALE};
 
+#[macro_export]
+macro_rules! note {
+    ($token:expr) => {
+        Note::from_str($token)
+    };
+    ($name:expr, $accidental:expr) => {
+        Note::new($name, $accidental)
+    };
+}
+
 /// Initialize an [`Interval`] from either the [`Interval::from_str`] constructor or the [`Interval::new`] constructor.
 /// In either case, the return type is a [`Result`] of [`Interval`] or [`IntervalError`].
 #[macro_export]
@@ -490,6 +500,8 @@ mod test_note_names {
     use super::*;
     use IntervalSize::*;
     use IntervalQuality::*;
+    use NoteName::*;
+    use Accidental::*;
 
     #[test]
     fn test_chromatic_scale_degree_conversion() -> Result<(), NoteError> {
@@ -583,6 +595,25 @@ mod test_note_names {
         assert_eq!(ivl!(Fifth, Augmented(1))?, ivl!("M3")? + ivl!("M3")?);
         // diminished seventh
         assert_eq!(ivl!(Seventh, Diminished(1))?, ivl!("m3")? +  ivl!("m3")? + ivl!("m3")?);
+        Ok(())
+    }
+
+    #[test]
+    fn readme_example() -> Result<(), Error> {
+        // note naming
+        let b_flat = Note::new(B, Flat(1));
+        let g_sharp = note!("G#")?;
+        assert_eq!(Interval::new(Sixth, Augmented(1))?, Interval::from_notes(&b_flat, &g_sharp));
+
+        // adding intervals
+        let major_second = Interval::new(Second, Major)?;
+        let perfect_fourth = Interval::from_str("p4")?;
+        assert_eq!(Interval::new(Fifth, Perfect)?, major_second + perfect_fourth);
+
+        // combine notes and intervals
+        let f_sharp = note!("f#")?;
+        let major_third = ivl!("M3")?;
+        assert_eq!(note!("a#")?, f_sharp + major_third);
         Ok(())
     }
 }
