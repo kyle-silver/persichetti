@@ -10,6 +10,9 @@ pub enum ToneRowError{
     TooBig(usize),
 }
 
+/// Indicates the conversion scheme that should be used when converting between absolute pitches or other representations
+/// which do not indicate a tonal center. Provided are `Flats` and `Sharps`, which, as expected, convert everything to
+/// either all flats or all sharps. You can also provide a custom conversion scheme.
 #[derive(Debug)]
 pub enum Convert {
     Flats,
@@ -24,7 +27,7 @@ impl Convert {
         if let Convert::Custom(f) = self {
             return f(n);
         }
-        match n % 12 {
+        match n % CHROMATIC_SCALE {
             0 => Note::new(C, Natural),
             1 => match self {
                 Convert::Flats => Note::new(D, Flat(1)),
@@ -105,16 +108,17 @@ impl<const D: usize> ToneRow<D> {
     /// Panics if the index is out of bounds.
     pub fn p(&self, index: usize) -> [usize; D] {
         let initial = self.row[0][0];
+        let target = (initial as isize + index as isize).rem_euclid(D as isize) as usize;
         for i in 0..D {
-            if self.row[i][0] == (initial + index) % 12 {
+            if self.row[i][0] == target {
                 return self.row[i].clone();
             }
         }
         panic!("Could not find desired prime row; The index may be out of bounds.");
     }
 
-    /// Retrieve a prime row. Prime rows are numbered not in the order they appear in the tone row from top
-    /// to bottom, but rather by position in P<sub>0</sub> of the first note in P<sub>n</sub>. If you need
+    /// Retrieve a prime row. Prime rows are numbered by the number of half steps above P<sub>0</sub>
+    /// that they are. For example, P<sub>4</sub> is 4 half-steps higher than P<sub>0</sub>. If you need
     /// a Retrograde of a prime row, use [`rev`] in combination with this function. Retrogrades have the same
     /// number as their associated prime, i.e., R<sub>n</sub> is the retrograde of P<sub>n</sub>.
     ///
@@ -133,13 +137,27 @@ impl<const D: usize> ToneRow<D> {
     /// Panics if the index is out of bounds.
     pub fn i(&self, index: usize) -> [usize; D] {
         let initial = self.row[0][0];
+        let target = (initial as isize + index as isize).rem_euclid(D as isize) as usize;
         for i in 0..D {
-            if self.row[0][i] == (initial + index) % 12 {
+            if self.row[0][i] == target {
                 let v: Vec<_> = IntoIter::new(self.row).map(|r| r[i]).collect();
                 return v.try_into().expect("Could not convert vec to array");
             }
         }
         panic!("Could not find desired prime row; The index may be out of bounds.");
+    }
+
+    /// Retrieve an inversion. Inversions are numbered by the number of half steps above I<sub>0</sub>
+    /// that they are. For example, I<sub>4</sub> is 4 half-steps higher than I<sub>0</sub>. If you need
+    /// a Retrograde of a prime row, use [`rev`] in combination with this function. Retrogrades have the same
+    /// number as their associated prime, i.e., R<sub>n</sub> is the retrograde of P<sub>n</sub>.
+    ///
+    /// [`rev`]: https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.rev
+    /// # Panics
+    /// Panics if the index is out of bounds
+    pub fn inversion(&self, index: usize, conversion: Convert) -> [Note; D] {
+        let notes: Vec<_> = self.i(index).iter().map(|n| conversion.to_note(*n)).collect();
+        notes.try_into().expect("Could not convert to array")
     }
 
 }
