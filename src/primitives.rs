@@ -384,6 +384,21 @@ impl Add<IntervalSize> for IntervalSize {
     }
 }
 
+/// Represents a chromatic alteration up or down that is applied to a pure [`IntervalSize`]. Similar to 
+/// [`Accidental`], using a zero with `Diminished` or `Augmented` is a no-op and probably not useful.
+///
+/// Due to a quirk of nomenclature, the value of `Diminished(n)` will vary depending on whether an interval
+/// is `Perfect` or `Major`. For example, a diminished fifth has an alteration of &minus;1, but a diminished
+/// third has an alteration of &minus;2.
+/// 
+/// | Quality | Size | Chromatic Alteration |
+/// | --- | --- | --- |
+/// | Major | Second, Third, Sixth, Seventh | 0 |
+/// | Minor | Second, Third, Sixth, Seventh | &minus;1 |
+/// | Perfect | Unison, Fourth, Fifth | 0 |
+/// | Diminished(N) | Second, Third, Sixth, Seventh | &minus;1 &times; (N&plus;1) |
+/// | Diminished(N) | Unison, Fourth, Fifth | &minus;N |
+/// | Augmented(N) | All Intervals | (&plus;N)
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum IntervalQuality {
     Diminished(usize),
@@ -394,7 +409,9 @@ pub enum IntervalQuality {
 }
 
 impl IntervalQuality {
-    fn from_chromatic_span(size: &IntervalSize, span: isize) -> IntervalQuality {
+    /// Given the interval size, (how many note names are between the top and bottom) calculate an interval
+    /// quality that will make the [`Interval`] span the correct number of whole steps.
+    pub fn from_chromatic_span(size: &IntervalSize, span: isize) -> IntervalQuality {
         use IntervalSize::*;
         let delta = span - size.chromatic_size() as isize;
         match size {
@@ -417,6 +434,8 @@ impl IntervalQuality {
     } 
 }
 
+/// An Interval is a combination of an [`IntervalSize`] and an [`IntervalQuality`]. It represents the relationship
+/// between two [`Note`]s.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Interval {
     size: IntervalSize,
@@ -424,6 +443,8 @@ pub struct Interval {
 }
 
 impl Interval {  
+    /// Instantiate a new `Interval`. If an invalid combination is entered, such as a major fourth or a perfect third,
+    /// the function will return an error.
     pub fn new(size: IntervalSize, quality: IntervalQuality) -> Result<Interval, IntervalError> {
         use IntervalSize::*;
         use IntervalQuality::*;
@@ -441,11 +462,12 @@ impl Interval {
         Ok(Interval { size, quality })
     }
 
+    /// Instantiate an `Interval` using the shorthand documented in [`crate::primitives`]. If the token cannot be
+    /// parsed or the desired interval is invalid, an error will be returned.
     pub fn from_str(input: &str) -> Result<Interval, IntervalError> {
         lazy_static! {
             static ref RE: Regex = Regex::new("^(?P<quality>([MmPpDd]|[Aa]+|[Dd]+))(?P<size>([Uu]|\\d+))$").unwrap();
         }
-        // let RE = Regex::new("^(?P<quality>([MmPpDd]|[Aa]+|[Dd]+))(?P<size>([Uu]|\\d+))$").unwrap();
         let caps = RE.captures(input).unwrap();
         if let (Some(quality), Some(size)) = (caps.name("quality"), caps.name("size")) {
             let quality = quality.as_str();
@@ -482,6 +504,8 @@ impl Interval {
         &self.quality
     }
 
+    /// The number of half-steps up or down that the [`IntervalQuality`] adjusts the [`IntervalSize`] by.
+    /// Keep in mind that the value of a `Diminished` interval depends on whether the size is Perfect or Major.
     fn chromatic_alteration(&self) -> isize {
         use IntervalSize::*;
         // the panic conditions will be unreachable given the public 
@@ -503,10 +527,34 @@ impl Interval {
         }
     }
 
-    fn chromatic_size(&self) -> isize {
+    /// The number of half steps between the top and bottom note in the interval. In the case of a diminished
+    /// unison, the output could be negative
+    /// ```rust
+    /// # use persichetti::primitives::*;
+    /// # use persichetti::primitives::{IntervalSize::*, IntervalQuality::*};
+    /// # fn main() -> Result<(), IntervalError> {
+    /// assert_eq!(7, Interval::new(Fifth, Perfect)?.chromatic_size());
+    /// assert_eq!(-1, Interval::new(Unison, Diminished(1))?.chromatic_size());
+    /// assert_eq!(-3, Interval::new(Second, Diminished(4))?.chromatic_size());
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn chromatic_size(&self) -> isize {
         self.size.chromatic_size() as isize + self.chromatic_alteration()
     }
 
+    /// Given two [`Note`]s, calculate the interval that describes their relationship. While there is discourse around
+    /// the existence of a [diminished unison](https://www.youtube.com/watch?v=y5DxegJ5Hmw), this library acknowledges
+    /// its existence since there is no concept of an octave.
+    /// ```rust
+    /// # use persichetti::{ivl, note};
+    /// # use persichetti::primitives::*;
+    /// # fn main() -> Result<(), Error> {
+    /// assert_eq!(ivl!("A6")?, Interval::from_notes(&note!("Bb")?, &note!("G#")?));
+    /// assert_eq!(ivl!("dU")?, Interval::from_notes(&note!("F#")?, &note!("F")?));
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn from_notes(lower: &Note, higher: &Note) -> Interval {
         let size = NoteName::interval_size(&lower.name, &higher.name);
         // white key distance
