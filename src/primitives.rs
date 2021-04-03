@@ -1,3 +1,42 @@
+//! This module provides notes and intervals for use in more complex applications, as well as macros for
+//! quicky initializing them.
+//! 
+//! # Note Shorthand
+//! Notes can be represented compactly as strings. [`Note`] names are not case-sensitive, but flat symbols and double-sharps are.
+//! 
+//! | Symbol | Meaning | Example |
+//! | --- | --- | --- |
+//! | `A-G` | Note Name | `"a", "C", "f"` |
+//! | `nat` | Natural | `"bnat", "Gnat"` |
+//! | `b...` | One or more flats | `"Bb", "Abb"` |
+//! | `#...` | One or more sharps | `"f#", "C#"` |
+//! | `x...` | One or more double-sharps | `"gx", "Dx"` |
+//! | `#x..` | A triple+ sharp | `"C#x", "E#xx"` |
+//! 
+//! When initializing a [`PitchedNote`], the octave number can be appended to the end of the note name. Negative numbers are supported
+//! 
+//! ```rust
+//! # use persichetti::primitives::*;
+//! let b_flat_2 = PitchedNote::from_str("Bb2").unwrap();
+//! let g_sharp_negative_one = PitchedNote::from_str("g#-1").unwrap();
+//! ```
+//!
+//! # Interval Shorthand
+//! Intervals have a string representation as well. Capital and lowercase M&rsquo;s are case-sensitive, but all other qualities are not.
+//! When an interval is double diminished or doubly augmented, it can be represented as `"aa5"` (doubly-augmented fifth) or `"dd3"
+//! (doubly-diminished third). This can be extended to an arbitrary number of augmentations or diminutions.
+//!
+//! | Symbol | Meaning | Example |
+//! | --- | --- | --- |
+//! | `1-7` | Unison through Seventh| `"m6", "A4"` |
+//! | `0` | Unison. Both 0 and 1 represent Unisons | `"p0"` |
+//! | `U` | Unison | `"au", "pU"` |
+//! | `P` | Perfect | `"p4", "P5"` |
+//! | `A...` | Augmented by one or more degrees | `"A4", "aa6"` |
+//! | `D...` | Diminished by one or more degrees | `"D3", "dd2"` |
+//! | `M` | Major | `"M3", "M7"` |
+//! | `m` | Minor | `"m2", "m6` |
+
 use std::{cmp::Ordering, ops::{Add, Sub}, usize};
 
 use derive_more::From;
@@ -6,6 +45,8 @@ use lazy_static::lazy_static;
 
 use crate::{CHROMATIC_SCALE, C_ZERO_MIDI, DIATONIC_SCALE};
 
+/// Initialize a [`Note`] from either the [`Note::from_str`] constructor or the [`Note::new`] constructor.
+/// In either case, the the return type is a [`Result`] of [`Note`] or [`NoteError`].
 #[macro_export]
 macro_rules! note {
     ($token:expr) => {
@@ -39,13 +80,15 @@ pub enum NoteError {
     InvalidNoteName,
 }
 
+/// The &ldquo;white keys&rdquo; of the piano; the seven note names used in western harmony.
 #[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
 pub enum NoteName {
     C, D, E, F, G, A, B,
 }
 
 impl NoteName {
-    fn new(name: &str) -> Result<NoteName, NoteError> {
+    /// Instantiate from a string representing the note name; case-insensitive.
+    pub fn new(name: &str) -> Result<NoteName, NoteError> {
         match name.to_lowercase().as_str() {
             "a" => Ok(NoteName::A),
             "b" => Ok(NoteName::B),
@@ -58,7 +101,8 @@ impl NoteName {
         }
     }
 
-    fn diatonic_scale_degree(&self) -> usize {
+    /// The placement of the note name in a C Major scale. C is zero and B is seven.
+    pub fn diatonic_scale_degree(&self) -> usize {
         match self {
             NoteName::C => 0,
             NoteName::D => 1,
@@ -70,7 +114,8 @@ impl NoteName {
         }
     }
 
-    fn chromatic_scale_degree(&self) -> usize {
+    /// The placement of the &ldquo;white key&rdquo; in a chromatic scale. C is zero and B is eleven.
+    pub fn chromatic_scale_degree(&self) -> usize {
         match self {
             NoteName::C => 0,
             NoteName::D => 2,
@@ -82,9 +127,15 @@ impl NoteName {
         }
     }
 
-    fn from_diatonic_scale_degree(degree: isize) -> NoteName {
-        let degree = degree.rem_euclid(DIATONIC_SCALE as isize);
-        match degree {
+    /// Get the corresponding &ldquo;white key&rdquo; for a given number. Supports values outside of the range 0&ndash;6.
+    /// ```rust
+    /// # use persichetti::primitives::*;
+    /// assert_eq!(NoteName::D, NoteName::from_diatonic_scale_degree(1));
+    /// assert_eq!(NoteName::E, NoteName::from_diatonic_scale_degree(9));
+    /// assert_eq!(NoteName::B, NoteName::from_diatonic_scale_degree(-1));
+    /// ```
+    pub fn from_diatonic_scale_degree(degree: isize) -> NoteName {
+        match degree.rem_euclid(DIATONIC_SCALE as isize) {
             0 => NoteName::C,
             1 => NoteName::D,
             2 => NoteName::E,
@@ -96,7 +147,8 @@ impl NoteName {
         }
     }
 
-    fn interval_size(&self, note_above: &Self) -> IntervalSize {
+    /// Calculate the [`IntervalSize`] between two note names
+    pub fn interval_size(&self, note_above: &Self) -> IntervalSize {
         let size = note_above.diatonic_scale_degree() as isize - self.diatonic_scale_degree() as isize;
         let size = size.rem_euclid(DIATONIC_SCALE as isize);
         IntervalSize::from_diatonic_size(size as usize)
@@ -122,6 +174,10 @@ impl Add<IntervalSize> for NoteName {
     }
 }
 
+/// An accidental represents the degree of chromatic alteration applied to a [`NoteName`]. Please note
+/// that `Flat(1)` represents a diminution of a single half-step, and `Sharp(1)` represents an augmentation
+/// of a single half-step. `Flat(0)` is equivalent to `Natural` and probably not useful to you. Double flats
+/// and double sharps are represented as `Flat(2)` and `Sharp(2)`.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Accidental {
     Flat(usize),
@@ -130,7 +186,8 @@ pub enum Accidental {
 }
 
 impl Accidental {
-    fn from_isize(degree: isize) -> Accidental {
+    /// Converts a degree of chromatic alteration applied to a note into an accidental.
+    pub fn from_isize(degree: isize) -> Accidental {
         match degree {
             isize::MIN..=-1 => Accidental::Flat(-degree as usize),
             0 => Accidental::Natural,
@@ -138,7 +195,8 @@ impl Accidental {
         }
     }
 
-    fn chromatic_offset(&self) -> isize {
+    /// The number of half-steps up or down that an accidental represents
+    pub fn chromatic_offset(&self) -> isize {
         match self {
             Accidental::Flat(degree) => -1 * (*degree as isize),
             Accidental::Natural => 0,
@@ -147,6 +205,8 @@ impl Accidental {
     }
 }
 
+/// A note is represented as a pairing of a [`NoteName`] and an [`Accidental`]. These notes have no concept of
+/// absolute pitch or octave equivalence; if you need a note with octave information, use [`PitchedNote`].
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Note {
     name: NoteName,
@@ -166,9 +226,10 @@ impl Note {
         &self.accidental
     }
 
+    /// Instantiate a `Note` using the shorthand documented in [`crate::primitives`]
     pub fn from_str(note: &str) -> Result<Note, NoteError> {
         lazy_static! {
-            static ref RE: Regex =  Regex::new("^(?P<note>[A-Ga-g])((?P<sharp>(#|x+|#x+))|(?P<flat>b+)|(?P<nat>nat))?$").unwrap();
+            static ref RE: Regex =  Regex::new("^(?P<note>[A-Ga-g])((?P<sharp>(#+|x+|#x+))|(?P<flat>b+)|(?P<nat>nat))?$").unwrap();
         }
         if RE.is_match(note) == false {
             return Err(NoteError::InvalidNoteName);
@@ -248,6 +309,7 @@ pub enum IntervalError {
     UnsupportedCompoundInterval,
 }
 
+/// Represents the pure diatonic intervals with no chromatic alterations
 #[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
 pub enum IntervalSize {
     Unison,
@@ -260,7 +322,9 @@ pub enum IntervalSize {
 }
 
 impl IntervalSize {
-    fn diatonic_size(&self) -> usize {
+    /// The diatonic distance between the top note and the bottom note in an interval pair. A `Unison` has a 
+    /// distance of zero and a `Seventh` has a distance of 6.
+    pub fn diatonic_size(&self) -> usize {
         match self {
             IntervalSize::Unison => 0,
             IntervalSize::Second => 1,
@@ -272,7 +336,9 @@ impl IntervalSize {
         }
     }
 
-    fn chromatic_size(&self) -> usize {
+    /// The number of half-steps between the top note and the bottom note. This assumes that the intervals are
+    /// from a major scale, i.e. all intervals are either Major or Perfect
+    pub fn chromatic_size(&self) -> usize {
         match self {
             IntervalSize::Unison => 0,
             IntervalSize::Second => 2,
@@ -284,7 +350,9 @@ impl IntervalSize {
         }
     }
 
-    fn from_diatonic_size(size: usize) -> IntervalSize {
+    /// Construct an `IntervalSize` from a number representing a position in a diatonic scale. A unison is zero
+    /// and a seventh is six. Numbers outside of the range 0&ndash;6 are supported.
+    pub fn from_diatonic_size(size: usize) -> IntervalSize {
         match size % 7 {
             0 => IntervalSize::Unison,
             1 => IntervalSize::Second,
@@ -393,7 +461,7 @@ impl Interval {
                 "U" | "u" => Ok(IntervalSize::Unison),
                 numeric => {
                     let interval_size = numeric.parse::<usize>().map_err(|_| IntervalError::InvalidToken)?;
-                    let interval_size = interval_size - 1;
+                    let interval_size = if interval_size == 0 { 0 } else { interval_size - 1 };
                     match interval_size {
                         0..=6 => Ok(IntervalSize::from_diatonic_size(interval_size)),
                         _ => Err(IntervalError::UnsupportedCompoundInterval),
