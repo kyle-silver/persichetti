@@ -2,7 +2,7 @@ use std::{array::IntoIter, convert::TryInto, usize};
 
 use itertools::Itertools;
 
-use crate::primitives::Note;
+use crate::{CHROMATIC_SCALE, primitives::{Accidental, Note, NoteName}};
 
 #[derive(Debug)]
 pub enum ToneRowError{
@@ -14,13 +14,53 @@ pub enum ToneRowError{
 pub enum Convert {
     Flats,
     Sharps,
+    Custom(fn(usize) -> Note),
 }
 
-// impl Convert {
-//     fn to_note(&self, n: usize) -> Note {
-//         match n 
-//     }
-// }
+impl Convert {
+    fn to_note(&self, n: usize) -> Note {
+        use NoteName::*;
+        use Accidental::*;
+        if let Convert::Custom(f) = self {
+            return f(n);
+        }
+        match n % 12 {
+            0 => Note::new(C, Natural),
+            1 => match self {
+                Convert::Flats => Note::new(D, Flat(1)),
+                Convert::Sharps => Note::new(C, Sharp(1)),
+                _ => panic!("broken matching"),
+            }
+            2 => Note::new(D, Natural),
+            3 => match self {
+                Convert::Flats => Note::new(E, Flat(1)),
+                Convert::Sharps => Note::new(D, Sharp(1)),
+                _ => panic!("broken matching"),
+            }
+            4 => Note::new(E, Natural),
+            5 => Note::new(F, Natural),
+            6 => match self {
+                Convert::Flats => Note::new(G, Flat(1)),
+                Convert::Sharps => Note::new(F, Sharp(1)),
+                _ => panic!("broken matching"),
+            }
+            7 => Note::new(G, Natural),
+            8 => match self {
+                Convert::Flats => Note::new(A, Flat(1)),
+                Convert::Sharps => Note::new(G, Sharp(1)),
+                _ => panic!("broken matching"),
+            }
+            9 => Note::new(A, Natural),
+            10 => match self {
+                Convert::Flats => Note::new(B, Flat(1)),
+                Convert::Sharps => Note::new(A, Sharp(1)),
+                _ => panic!("broken matching"),
+            }
+            11 => Note::new(B, Natural),
+            _ => panic!("modulo broken")
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ToneRow<const D: usize> {
@@ -71,6 +111,19 @@ impl<const D: usize> ToneRow<D> {
             }
         }
         panic!("Could not find desired prime row; The index may be out of bounds.");
+    }
+
+    /// Retrieve a prime row. Prime rows are numbered not in the order they appear in the tone row from top
+    /// to bottom, but rather by position in P<sub>0</sub> of the first note in P<sub>n</sub>. If you need
+    /// a Retrograde of a prime row, use [`rev`] in combination with this function. Retrogrades have the same
+    /// number as their associated prime, i.e., R<sub>n</sub> is the retrograde of P<sub>n</sub>.
+    ///
+    /// [`rev`]: https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.rev
+    /// # Panics
+    /// Panics if the index is out of bounds
+    pub fn prime(&self, index: usize, conversion: Convert) -> [Note; D] {
+        let notes: Vec<_> = self.p(index).iter().map(|n| conversion.to_note(*n)).collect();
+        notes.try_into().expect("Could not convert to array")
     }
 
     /// Retrieve a prime row as a numeric array. If you need the retrograde, call [`rev`] on it.
