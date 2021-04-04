@@ -877,6 +877,12 @@ impl Ord for PitchedNote {
     }
 }
 
+impl Display for PitchedNote {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}{}", self.note, self.octave)
+    }
+}
+
 /// A compound interval represents an [`Interval`] that may span more than one octave.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct CompoundInterval {
@@ -931,6 +937,12 @@ mod pitched_note_tests {
             CompoundInterval::new(Interval::new(Unison, Augmented(1))?, 0), 
             PitchedNote::from_str("B5")?.compound_interval(&PitchedNote::from_str("B#5")?)
         );
+        Ok(())
+    }
+
+    #[test]
+    fn pitched_note_display() -> Result<(), Error> {
+        assert_eq!("G#x-1", format!("{}", PitchedNote::from_note(note!("G###")?, -1)).as_str());
         Ok(())
     }
 }
