@@ -734,6 +734,8 @@ mod test_note_names {
     }
 }
 
+/// A pitched note represents a [`Note`] in a definite octave. C<sub>4</sub> is &ldquo;middle C&rdquo; 
+/// and A<sub>0</sub> is the lowest note on a standard piano
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct PitchedNote {
     note: Note,
@@ -756,6 +758,8 @@ impl PitchedNote {
         }
     }
 
+    /// Instantiate using the same shorthand as a normal [`Note`] documented in [`crate::primitives`], but 
+    /// using an additional octave indicator.
     pub fn from_str(input: &str) -> Result<PitchedNote, NoteError> {
         // I don't feel like making a second regex...
         let pitch_index = input.find(|c: char| c.is_ascii_digit() || c == '-').ok_or(NoteError::InvalidNoteName)?;
@@ -818,6 +822,7 @@ impl Ord for PitchedNote {
     }
 }
 
+/// A compound interval represents an [`Interval`] that may span more than one octave.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct CompoundInterval {
     interval: Interval,
@@ -827,14 +832,6 @@ pub struct CompoundInterval {
 impl CompoundInterval {
     pub fn new(interval: Interval, compound_octaves: usize) -> CompoundInterval {
         CompoundInterval { interval, compound_octaves }
-    }
-
-    pub fn from_str(input: &str) -> Result<CompoundInterval, IntervalError> {
-        // again avoiding making a regex...
-        let pitch_index = input.find(|c: char| c.is_ascii_digit() || c == '-').ok_or(IntervalError::InvalidToken)?;
-        let interval = Interval::from_str(&input[..pitch_index])?;
-        let compound_octaves = input[pitch_index..].parse().map_err(|_| IntervalError::InvalidToken)?;
-        Ok(CompoundInterval::new(interval, compound_octaves))
     }
 
     pub fn simple_interval(&self) -> Interval {
@@ -847,6 +844,8 @@ mod pitched_note_tests {
     use super::*;
     use NoteName::*;
     use Accidental::*;
+    use IntervalSize::*;
+    use IntervalQuality::*;
 
     #[test]
     fn midi_conversions() -> Result<(), Error> {
@@ -868,9 +867,15 @@ mod pitched_note_tests {
 
     #[test]
     fn compound_interval() -> Result<(), Error> {
-        assert_eq!(CompoundInterval::from_str("dU1")?, PitchedNote::from_str("G#5")?.compound_interval(&PitchedNote::from_str("G6")?));
+        assert_eq!(
+            CompoundInterval::new(Interval::new(Unison, Diminished(1))?, 0), 
+            PitchedNote::from_str("G#5")?.compound_interval(&PitchedNote::from_str("G6")?)
+        );
         println!("{} vs {}", PitchedNote::from_str("B5")?.midi_number(), PitchedNote::from_str("B#5")?.midi_number());
-        assert_eq!(CompoundInterval::from_str("aU0")?, PitchedNote::from_str("B5")?.compound_interval(&PitchedNote::from_str("B#5")?));
+        assert_eq!(
+            CompoundInterval::new(Interval::new(Unison, Augmented(1))?, 0), 
+            PitchedNote::from_str("B5")?.compound_interval(&PitchedNote::from_str("B#5")?)
+        );
         Ok(())
     }
 }

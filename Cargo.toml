@@ -3,6 +3,11 @@ name = "persichetti"
 version = "0.1.0"
 authors = ["Kyle Silver"]
 edition = "2018"
+license = "MIT"
+description = "Foundational elements of western classical harmony, and tools to analyze them"
+homepage = "https://github.com/kyle-silver/persichetti"
+repository = "https://github.com/kyle-silver/persichetti"
+readme = "readme.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
