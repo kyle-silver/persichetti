@@ -37,7 +37,7 @@
 //! | `M` | Major | `"M3", "M7"` |
 //! | `m` | Minor | `"m2", "m6` |
 
-use std::{cmp::Ordering, ops::{Add, Sub}, usize};
+use std::{cmp::Ordering, fmt::Display, ops::{Add, Sub}, usize};
 
 use derive_more::From;
 use regex::Regex;
@@ -174,6 +174,21 @@ impl Add<IntervalSize> for NoteName {
     }
 }
 
+impl Display for NoteName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let name = match self {
+            NoteName::C => "C",
+            NoteName::D => "D",
+            NoteName::E => "E",
+            NoteName::F => "F",
+            NoteName::G => "G",
+            NoteName::A => "A",
+            NoteName::B => "B",
+        };
+        f.write_str(name)
+    }
+}
+
 /// An accidental represents the degree of chromatic alteration applied to a [`NoteName`]. Please note
 /// that `Flat(1)` represents a diminution of a single half-step, and `Sharp(1)` represents an augmentation
 /// of a single half-step. `Flat(0)` is equivalent to `Natural` and probably not useful to you. Double flats
@@ -201,6 +216,25 @@ impl Accidental {
             Accidental::Flat(degree) => -1 * (*degree as isize),
             Accidental::Natural => 0,
             Accidental::Sharp(degree) => *degree as isize,
+        }
+    }
+}
+
+impl Display for Accidental {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Accidental::Flat(d) => {
+                let flats: String = std::iter::repeat("b").take(*d).collect();
+                f.write_str(&flats)
+            },
+            Accidental::Natural => {
+                f.write_str("nat")
+            },
+            Accidental::Sharp(d) => {
+                let prefix = if d % 2 == 1 { "#" } else { "" };
+                let remainder = std::iter::repeat("x").take(d/2).collect::<String>();
+                write!(f, "{}{}", prefix, remainder)
+            }
         }
     }
 }
@@ -299,6 +333,15 @@ impl Sub<Interval> for Note {
 
     fn sub(self, rhs: Interval) -> Self::Output {
         &self - &rhs
+    }
+}
+
+impl Display for Note {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.accidental {
+            Accidental::Natural => write!(f, "{}", self.name),
+            _ => write!(f, "{}{}", self.name, self.accidental),
+        }
     }
 }
 
@@ -730,6 +773,18 @@ mod test_note_names {
         let f_sharp = note!("f#")?;
         let major_third = ivl!("M3")?;
         assert_eq!(note!("a#")?, f_sharp + major_third);
+        Ok(())
+    }
+
+    #[test]
+    fn note_display() -> Result<(), Error> {
+        assert_eq!("C", format!("{}", note!("C")?).as_str());
+        assert_eq!("E", format!("{}", note!("Enat")?).as_str());
+        assert_eq!("Bb", format!("{}", note!("Bb")?).as_str());
+        assert_eq!("G#xx", format!("{}", note!("G#####")?).as_str());
+        assert_eq!("Fx", format!("{}", note!("Fx")?).as_str());
+        assert_eq!("Abb", format!("{}", note!("Abb")?).as_str());
+        assert_eq!("D#", format!("{}", note!("D#")?).as_str());
         Ok(())
     }
 }
