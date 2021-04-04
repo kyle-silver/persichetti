@@ -22,8 +22,8 @@
 //! ```
 //!
 //! # Interval Shorthand
-//! Intervals have a string representation as well. Capital and lowercase M&rsquo;s are case-sensitive, but all other qualities are not.
-//! When an interval is double diminished or doubly augmented, it can be represented as `"aa5"` (doubly-augmented fifth) or `"dd3"
+//! [`Interval`]s have a string representation as well. Capital and lowercase M&rsquo;s are case-sensitive, but all other qualities are not.
+//! When an interval is doubly augmented or doubly diminished, it can be represented as `"aa5"` (doubly-augmented fifth) or `"dd3"
 //! (doubly-diminished third). This can be extended to an arbitrary number of augmentations or diminutions.
 //!
 //! | Symbol | Meaning | Example |
@@ -158,7 +158,7 @@ impl NoteName {
 impl Add<&IntervalSize> for &NoteName {
     type Output = NoteName;
 
-    /// Simple, &ldquo;white key only&rdquo; computations without any consideration for accidentals.
+    /// Simple &ldquo;white key only&rdquo; computations without any consideration for accidentals.
     /// This is analogous to traversing a C Major scale.
     fn add(self, size: &IntervalSize) -> Self::Output {
         let degree = self.diatonic_scale_degree() + size.diatonic_size();

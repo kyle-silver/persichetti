@@ -5,7 +5,6 @@ authors = ["Kyle Silver"]
 edition = "2018"
 license = "MIT"
 description = "Foundational elements of western classical harmony, and tools to analyze them"
-homepage = "https://github.com/kyle-silver/persichetti"
 repository = "https://github.com/kyle-silver/persichetti"
 readme = "readme.md"
 
