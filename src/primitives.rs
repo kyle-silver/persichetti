@@ -868,7 +868,7 @@ mod pitched_note_tests {
     #[test]
     fn compound_interval() -> Result<(), Error> {
         assert_eq!(
-            CompoundInterval::new(Interval::new(Unison, Diminished(1))?, 0), 
+            CompoundInterval::new(Interval::new(Unison, Diminished(1))?, 1), 
             PitchedNote::from_str("G#5")?.compound_interval(&PitchedNote::from_str("G6")?)
         );
         println!("{} vs {}", PitchedNote::from_str("B5")?.midi_number(), PitchedNote::from_str("B#5")?.midi_number());
