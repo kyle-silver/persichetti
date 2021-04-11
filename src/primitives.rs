@@ -9,8 +9,8 @@
 //! | `A-G` | Note Name | `"a", "C", "f"` |
 //! | `nat` | Natural | `"bnat", "Gnat"` |
 //! | `b...` | One or more flats | `"Bb", "Abb"` |
-//! | `#...` | One or more sharps | `"f#", "C#"` |
-//! | `x...` | One or more double-sharps | `"gx", "Dx"` |
+//! | `#...` | One or more sharps | `"f#", "C##"` |
+//! | `x...` | One or more double-sharps | `"gx", "Dxx"` |
 //! | `#x..` | A triple+ sharp | `"C#x", "E#xx"` |
 //! 
 //! When initializing a [`PitchedNote`], the octave number can be appended to the end of the note name. Negative numbers are supported
@@ -36,6 +36,15 @@
 //! | `D...` | Diminished by one or more degrees | `"D3", "dd2"` |
 //! | `M` | Major | `"M3", "M7"` |
 //! | `m` | Minor | `"m2", "m6` |
+//! 
+//! When initializing a [`CompoundInterval`], the octave number can be appended to the end of the interval with a `+N` for N octaves.
+//! Compound octaves must be zero or greater; a negative octave specifier is not allowed.
+//!
+//! ```rust
+//! # use persichetti::primitives::*;
+//! let perfect_fifth = CompoundInterval::from_str("P5+0").unwrap();
+//! let major_tenth = CompoundInterval::from_str("M3+1").unwrap();
+//! ```
 
 use std::{cmp::Ordering, fmt::Display, ops::{Add, Sub}, usize};
 
@@ -45,8 +54,10 @@ use lazy_static::lazy_static;
 
 use crate::{CHROMATIC_SCALE, C_ZERO_MIDI, DIATONIC_SCALE};
 
-/// Initialize a [`Note`] from either the [`Note::from_str`] constructor or the [`Note::new`] constructor.
-/// In either case, the the return type is a [`Result`] of [`Note`] or [`NoteError`].
+/// Initialize a [`Note`]
+///
+/// The constructor is either [`Note::from_str`] or [`Note::new`].
+/// With the string constructor, the return type will be a [`Result`] of [`Note`] and[`NoteError`].
 #[macro_export]
 macro_rules! note {
     ($token:expr) => {
@@ -57,8 +68,24 @@ macro_rules! note {
     };
 }
 
-/// Initialize an [`Interval`] from either the [`Interval::from_str`] constructor or the [`Interval::new`] constructor.
-/// In either case, the return type is a [`Result`] of [`Interval`] or [`IntervalError`].
+/// Initialize a [`PitchedNote`]
+///
+/// The constructor is either [`PitchedNote::from_str`] or [`PitchedNote::new`].
+/// With the string constructor, the return type will be a [`Result`] of [`PitchedNote`] and [`NoteError`].
+#[macro_export]
+macro_rules! pnote {
+    ($token:expr) => {
+        PitchedNote::from_str($token)
+    };
+    ($name:expr, $accidental:expr, $octave:expr) => {
+        PitchedNote::new($name, $accidental, $octave)
+    };
+}
+
+/// Initialize an [`Interval`]
+///
+/// The constructor is either the [`Interval::from_str`] or [`Interval::new`] constructor.
+/// With the string constructor, the return type will be a [`Result`] of [`Interval`] and [`IntervalError`].
 #[macro_export]
 macro_rules! ivl {
     ($token:expr) => {
@@ -69,19 +96,35 @@ macro_rules! ivl {
     };
 }
 
+/// Initialize a [`CompoundInterval`]
+///
+/// The constructor is either the [`CompoundInterval::from_str`] or [`CompoundInterval::new`] constructor.
+/// With the string constructor, the return type will be a [`Result`] of [`CompoundInterval`] and [`IntervalError`].
+#[macro_export]
+macro_rules! civl {
+    ($token:expr) => {
+        CompoundInterval::from_str($token)
+    };
+    ($size:expr, $quality:expr, $octaves:expr) => {
+        CompoundInterval::new($size, $quality, $octaves)
+    };
+}
+
+/// General top-level error type for the module.
 #[derive(Debug, From)]
 pub enum Error {
     Note(NoteError),
     Interval(IntervalError),
 }
 
+/// Indicates that a [`Note`] could not be constructed.
 #[derive(Debug)]
 pub enum NoteError {
     InvalidNoteName,
 }
 
 /// The &ldquo;white keys&rdquo; of the piano; the seven note names used in western harmony.
-#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord, Hash)]
 pub enum NoteName {
     C, D, E, F, G, A, B,
 }
@@ -189,11 +232,12 @@ impl Display for NoteName {
     }
 }
 
-/// An accidental represents the degree of chromatic alteration applied to a [`NoteName`]. Please note
-/// that `Flat(1)` represents a diminution of a single half-step, and `Sharp(1)` represents an augmentation
+/// An accidental represents the degree of chromatic alteration applied to a [`NoteName`]. 
+///
+/// Please note that `Flat(1)` represents a diminution of a single half-step, and `Sharp(1)` represents an augmentation
 /// of a single half-step. `Flat(0)` is equivalent to `Natural` and probably not useful to you. Double flats
 /// and double sharps are represented as `Flat(2)` and `Sharp(2)`.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Accidental {
     Flat(usize),
     Natural,
@@ -241,7 +285,7 @@ impl Display for Accidental {
 
 /// A note is represented as a pairing of a [`NoteName`] and an [`Accidental`]. These notes have no concept of
 /// absolute pitch or octave equivalence; if you need a note with octave information, use [`PitchedNote`].
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Note {
     name: NoteName,
     accidental: Accidental,
@@ -345,6 +389,7 @@ impl Display for Note {
     }
 }
 
+/// Indicates that an [`Interval`] could not be constructed.
 #[derive(Debug, PartialEq, Eq)]
 pub enum IntervalError {
     InvalidQualityAndSizeCombination,
@@ -352,8 +397,8 @@ pub enum IntervalError {
     UnsupportedCompoundInterval,
 }
 
-/// Represents the pure diatonic intervals with no chromatic alterations
-#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
+/// Represents the pure diatonic intervals with no chromatic alterations.
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord, Hash)]
 pub enum IntervalSize {
     Unison,
     Second,
@@ -442,8 +487,9 @@ impl Display for IntervalSize {
     }
 }
 
-/// Represents a chromatic alteration up or down that is applied to a pure [`IntervalSize`]. Similar to 
-/// [`Accidental`], using a zero with `Diminished` or `Augmented` is a no-op and probably not useful.
+/// Represents a chromatic alteration up or down that is applied to a pure [`IntervalSize`]. 
+///
+/// Similar to [`Accidental`], using a zero with `Diminished` or `Augmented` is a no-op and probably not useful.
 ///
 /// Due to a quirk of nomenclature, the value of `Diminished(n)` will vary depending on whether an interval
 /// is `Perfect` or `Major`. For example, a diminished fifth has an alteration of &minus;1, but a diminished
@@ -457,7 +503,7 @@ impl Display for IntervalSize {
 /// | Diminished(N) | Second, Third, Sixth, Seventh | &minus;1 &times; (N&plus;1) |
 /// | Diminished(N) | Unison, Fourth, Fifth | &minus;N |
 /// | Augmented(N) | All Intervals | (&plus;N)
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum IntervalQuality {
     Diminished(usize),
     Augmented(usize),
@@ -507,7 +553,7 @@ impl Display for IntervalQuality {
 
 /// An Interval is a combination of an [`IntervalSize`] and an [`IntervalQuality`]. It represents the relationship
 /// between two [`Note`]s.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Interval {
     size: IntervalSize,
     quality: IntervalQuality,
@@ -690,7 +736,7 @@ impl Display for Interval {
 
 /// A pitched note represents a [`Note`] in a definite octave. C<sub>4</sub> is &ldquo;middle C&rdquo; 
 /// and A<sub>0</sub> is the lowest note on a standard piano
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct PitchedNote {
     note: Note,
     octave: isize
@@ -760,7 +806,7 @@ impl PitchedNote {
             (higher_wk_midi - lower_wk_midi).abs() as usize
         };
         let compound_octaves = white_key_chromatic_distance / CHROMATIC_SCALE;
-        CompoundInterval::new(interval, compound_octaves)
+        CompoundInterval::from_interval(interval, compound_octaves)
     }
 }
 
@@ -783,20 +829,42 @@ impl Display for PitchedNote {
 }
 
 /// A compound interval represents an [`Interval`] that may span more than one octave.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct CompoundInterval {
     interval: Interval,
     compound_octaves: usize,
 }
 
 impl CompoundInterval {
-    pub fn new(interval: Interval, compound_octaves: usize) -> CompoundInterval {
+    pub fn new(size: IntervalSize, quality: IntervalQuality, compound_octaves: usize) -> Result<Self, IntervalError> {
+        let interval = Interval::new(size, quality)?;
+        Ok(CompoundInterval { interval, compound_octaves })
+    }
+
+    pub fn from_interval(interval: Interval, compound_octaves: usize) -> Self {
         CompoundInterval { interval, compound_octaves }
     }
 
-    pub fn simple_interval(&self) -> Interval {
-        self.interval.clone()
+    /// Instantiate using the same shorthand as a normal [`Interval`] documented in [`crate::primitives`], but 
+    /// using an additional octave indicator.
+    pub fn from_str(input: &str) -> Result<Self, IntervalError> {
+        let components: Vec<&str> = input.split('+').collect();
+        let interval = components.get(0).ok_or(IntervalError::InvalidToken)?;
+        let interval = Interval::from_str(interval)?;
+        let compound_octaves = components.get(1)
+            .ok_or(IntervalError::InvalidToken)?
+            .parse()
+            .map_err(|_| IntervalError::InvalidToken)?;
+        Ok(CompoundInterval::from_interval(interval, compound_octaves))
     }
+
+    pub fn interval(&self) -> &Interval {
+        &self.interval
+    }
+
+    pub fn compound_octaves(&self) -> usize {
+        self.compound_octaves
+    }    
 }
 
 impl Display for CompoundInterval {
