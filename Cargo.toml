@@ -1,13 +1,13 @@
 [package]
 name = "persichetti"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Kyle Silver"]
 edition = "2018"
 license = "MIT"
 description = "Foundational elements of western classical harmony, and tools to analyze them"
 repository = "https://github.com/kyle-silver/persichetti"
 readme = "readme.md"
-keywords = ["music", "music-theory", "harmony", "note", "chord"]
+keywords = ["music", "music-theory", "harmony", "melody", "chord"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
