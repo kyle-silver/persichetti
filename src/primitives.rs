@@ -798,3 +798,9 @@ impl CompoundInterval {
         self.interval.clone()
     }
 }
+
+impl Display for CompoundInterval {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}+{}", self.interval, self.compound_octaves)
+    }
+}

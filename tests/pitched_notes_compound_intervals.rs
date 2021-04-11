@@ -1,4 +1,4 @@
-use persichetti::{note, primitives::{Accidental::*, CompoundInterval, Error, Interval, IntervalQuality::*, IntervalSize::*, Note, NoteName::*, PitchedNote}};
+use persichetti::{ivl, note, primitives::{Accidental::*, CompoundInterval, Error, Interval, IntervalQuality::*, IntervalSize::*, Note, NoteName::*, PitchedNote}};
 
 #[test]
 fn midi_conversions() -> Result<(), Error> {
@@ -35,5 +35,12 @@ fn compound_interval() -> Result<(), Error> {
 #[test]
 fn pitched_note_display() -> Result<(), Error> {
     assert_eq!("G#x-1", format!("{}", PitchedNote::from_note(note!("G###")?, -1)).as_str());
+    Ok(())
+}
+
+#[test]
+fn compound_interval_display() -> Result<(), Error> {
+    assert_eq!("DU+0", format!("{}", CompoundInterval::new(ivl!("du")?, 0)).as_str());
+    assert_eq!("M3+1", format!("{}", CompoundInterval::new(ivl!("M3")?, 1)).as_str());
     Ok(())
 }
