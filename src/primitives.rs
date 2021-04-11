@@ -427,6 +427,21 @@ impl Add<IntervalSize> for IntervalSize {
     }
 }
 
+impl Display for IntervalSize {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let token = match self {
+            IntervalSize::Unison => 'U',
+            IntervalSize::Second => '2',
+            IntervalSize::Third => '3',
+            IntervalSize::Fourth => '4',
+            IntervalSize::Fifth => '5',
+            IntervalSize::Sixth => '6',
+            IntervalSize::Seventh => '7',
+        };
+        write!(f, "{}", token)
+    }
+}
+
 /// Represents a chromatic alteration up or down that is applied to a pure [`IntervalSize`]. Similar to 
 /// [`Accidental`], using a zero with `Diminished` or `Augmented` is a no-op and probably not useful.
 ///
@@ -475,6 +490,19 @@ impl IntervalQuality {
             }
         }
     } 
+}
+
+impl Display for IntervalQuality {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let token: String = match self {
+            IntervalQuality::Diminished(d) => std::iter::repeat("D").take(*d).collect(),
+            IntervalQuality::Augmented(d) => std::iter::repeat("A").take(*d).collect(),
+            IntervalQuality::Minor => "m".to_string(),
+            IntervalQuality::Major => "M".to_string(),
+            IntervalQuality::Perfect => "P".to_string(),
+        };
+        write!(f, "{}", token)
+    }
 }
 
 /// An Interval is a combination of an [`IntervalSize`] and an [`IntervalQuality`]. It represents the relationship
@@ -654,6 +682,12 @@ impl Add<Interval> for Interval {
     }
 }
 
+impl Display for Interval {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}{}", self.quality, self.size)
+    }
+}
+
 #[cfg(test)]
 mod test_note_names {
     use super::*;
@@ -785,6 +819,17 @@ mod test_note_names {
         assert_eq!("Fx", format!("{}", note!("Fx")?).as_str());
         assert_eq!("Abb", format!("{}", note!("Abb")?).as_str());
         assert_eq!("D#", format!("{}", note!("D#")?).as_str());
+        Ok(())
+    }
+
+    #[test]
+    fn interval_display() -> Result<(), Error> {
+        assert_eq!("P5", format!("{}", ivl!("p5")?).as_str());
+        assert_eq!("AAAA3", format!("{}", ivl!("aaaa3")?).as_str());
+        assert_eq!("m6", format!("{}", ivl!("m6")?).as_str());
+        assert_eq!("PU", format!("{}", ivl!("pu")?).as_str());
+        assert_eq!("D7", format!("{}", ivl!("d7")?).as_str());
+        assert_eq!("M2", format!("{}", ivl!("M2")?).as_str());
         Ok(())
     }
 }
