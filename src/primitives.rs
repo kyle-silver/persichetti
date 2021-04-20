@@ -54,6 +54,25 @@ use lazy_static::lazy_static;
 
 use crate::{CHROMATIC_SCALE, C_ZERO_MIDI, DIATONIC_SCALE};
 
+
+/// Commonly used values
+pub mod consts {
+    use super::{Interval, IntervalQuality::*, IntervalSize::*};
+    pub const MAJOR_SECOND: Interval = Interval { size: Second, quality: Major };
+    pub const MINOR_THIRD: Interval = Interval { size: Third, quality: Minor };
+    pub const MAJOR_THIRD: Interval = Interval { size: Third, quality: Major };
+    pub const PERFECT_FOURTH: Interval = Interval { size: Fourth, quality: Perfect };
+    pub const PERFECT_FIFTH: Interval = Interval { size: Fifth, quality: Perfect };
+    pub const DIMINISHED_FIFTH: Interval = Interval { size: Fifth, quality: Diminished(1) };
+    pub const AUGMENTED_FIFTH: Interval = Interval { size: Fifth, quality: Augmented(1) };
+    pub const AUGMENTED_FOURTH: Interval = Interval { size: Fourth, quality: Augmented(1) };
+    pub const AUGMENTED_SIXTH: Interval = Interval { size: Sixth, quality: Augmented(1) };
+    pub const DIMINISHED_SEVENTH: Interval = Interval { size: Seventh, quality: Diminished(1) };
+    pub const MINOR_SEVENTH: Interval = Interval { size: Seventh, quality: Minor };
+    pub const MAJOR_SEVENTH: Interval = Interval { size: Seventh, quality: Major };
+}
+
+
 /// Initialize a [`Note`]
 ///
 /// The constructor is either [`Note::from_str`] or [`Note::new`].

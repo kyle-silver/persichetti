@@ -15,6 +15,7 @@
 
 pub mod primitives;
 pub mod serialism;
+pub mod chord;
 
 /// The number of distinct pitches in a chromatic scale spanning one octave
 pub const CHROMATIC_SCALE: usize = 12;
