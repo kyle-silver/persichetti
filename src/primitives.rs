@@ -642,7 +642,7 @@ impl Interval {
 
     /// The number of half-steps up or down that the [`IntervalQuality`] adjusts the [`IntervalSize`] by.
     /// Keep in mind that the value of a `Diminished` interval depends on whether the size is Perfect or Major.
-    fn chromatic_alteration(&self) -> isize {
+    pub fn chromatic_alteration(&self) -> isize {
         use IntervalSize::*;
         // the panic conditions will be unreachable given the public 
         // constructors for these classes
