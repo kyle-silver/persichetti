@@ -40,6 +40,21 @@ impl ChordType {
             .collect()
     }
 
+    pub fn subchords_ranked<'a>(notes: &HashSet<&'a Note>) -> HashMap<&'a Note, Vec<(ChordType, f64)>> {
+        notes.iter().map(|&n| {
+            let intervals = notes.iter().map(|other| {
+                Interval::from_notes(n, other)
+            }).collect();
+            let mut chord_types: Vec<_> = ChordType::iter().into_iter()
+                .map(|chord_type| {
+                    let confidence = chord_type.confidence(&intervals);
+                    (chord_type, confidence)
+                }).collect();
+            chord_types.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap().reverse());
+            (n, chord_types)
+        }).collect()
+    }
+
     pub fn intervals_from_root(&self) -> &[Interval] {
         use ChordType::*;
         match self {
@@ -49,16 +64,26 @@ impl ChordType {
             Augmented => &[MAJOR_THIRD, AUGMENTED_FIFTH],
             Sus2 => &[MAJOR_SECOND, PERFECT_FIFTH],
             Sus4 => &[PERFECT_FOURTH, PERFECT_FIFTH],
-            Seventh => &[MAJOR_THIRD, MINOR_SEVENTH],
-            MinorSeventh => &[MINOR_THIRD, MINOR_SEVENTH],
-            MajorSeventh => &[MAJOR_THIRD, MAJOR_SEVENTH],
-            MinorMajorSeventh =>  &[MINOR_THIRD, MAJOR_SEVENTH],
-            SuspendedSeventh => &[PERFECT_FOURTH, MINOR_SEVENTH],
-            DiminishedSeventh => &[DIMINISHED_SEVENTH],
-            ItalianSixth => &[MAJOR_THIRD, AUGMENTED_SIXTH],
-            FrenchSixth => &[MAJOR_THIRD, AUGMENTED_FOURTH, AUGMENTED_SIXTH],
-            GermanSixth => &[MAJOR_THIRD, PERFECT_FIFTH, AUGMENTED_SIXTH],
+            Seventh => &[MINOR_SEVENTH, MAJOR_THIRD, PERFECT_FIFTH],
+            MinorSeventh => &[MINOR_SEVENTH, MINOR_THIRD, PERFECT_FIFTH],
+            MajorSeventh => &[MAJOR_SEVENTH, MAJOR_THIRD, PERFECT_FIFTH],
+            MinorMajorSeventh =>  &[MINOR_THIRD, MAJOR_SEVENTH, PERFECT_FIFTH],
+            SuspendedSeventh => &[PERFECT_FOURTH, MINOR_SEVENTH, PERFECT_FIFTH],
+            DiminishedSeventh => &[DIMINISHED_SEVENTH, MINOR_THIRD, DIMINISHED_FIFTH],
+            ItalianSixth => &[AUGMENTED_SIXTH, MAJOR_THIRD],
+            FrenchSixth => &[AUGMENTED_SIXTH, MAJOR_THIRD, AUGMENTED_FOURTH],
+            GermanSixth => &[AUGMENTED_SIXTH, MAJOR_THIRD, PERFECT_FIFTH],
         }
+    }
+
+    pub fn confidence(&self, intervals: &HashSet<Interval>) -> f64 {
+        self.intervals_from_root().iter().enumerate().map(|(index, interval)| {
+            if intervals.contains(interval) {
+                1f64 / (index + 1) as f64
+            } else {
+                0f64
+            }
+        }).sum()
     }
 
     pub fn is_subchord(&self, of: &HashSet<Interval>) -> bool {
@@ -144,6 +169,23 @@ impl<'a> ExtendedHarmonyChord<'a> {
             .collect();
         candidates.sort_by(|a, b| {
             a.extensions.len().cmp(&b.extensions.len()).reverse()
+        });
+        candidates
+    }
+
+    pub fn candidates2(notes: &HashSet<&'a Note>) -> Vec<ExtendedHarmonyChord<'a>> {
+        let mut candidates: Vec<ExtendedHarmonyChord> = ChordType::subchords_ranked(notes).iter()
+            .map(|(&root, subchords)| {
+                let chords: Vec<_> = subchords.iter().map(|chord_type| {
+                    let extensions = chord_type.0.tensions(root, notes);
+                    ExtendedHarmonyChord::new(root, chord_type.0.clone(), extensions)
+                }).collect();
+                chords
+            })
+            .flat_map(|v| v)
+            .collect();
+        candidates.sort_by(|a, b| {
+            a.extensions.len().cmp(&b.extensions.len())
         });
         candidates
     }
