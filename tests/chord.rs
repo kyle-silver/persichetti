@@ -11,8 +11,9 @@ fn chord_test() -> Result<(), Error> {
     for (k, v) in possible {
         println!("{}: {:?}", k, v);
     }
+
     for candidate in ExtendedHarmonyChord::candidates(notes) {
-        println!("{:#?}", candidate);
+        println!("{:?}", candidate);
     }
     Ok(())
 }

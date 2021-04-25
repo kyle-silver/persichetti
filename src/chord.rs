@@ -85,13 +85,13 @@ impl ChordType {
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash, PartialOrd, Ord)]
 pub enum TensionName {
+    Root,
     Third,
     Fifth,
     Seventh,
     Ninth,
     Eleventh,
     Thirteenth,
-    Fifteenth
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
@@ -111,7 +111,7 @@ impl From<Interval> for Extension {
         use crate::primitives::IntervalSize;
         let alteration = Accidental::from_isize(interval.chromatic_alteration());
         let name = match interval.size() {
-            IntervalSize::Unison => TensionName::Fifteenth,
+            IntervalSize::Unison => TensionName::Root,
             IntervalSize::Second => TensionName::Ninth,
             IntervalSize::Third => TensionName::Third,
             IntervalSize::Fourth => TensionName::Eleventh,
@@ -132,7 +132,7 @@ pub struct ExtendedHarmonyChord<'a> {
 
 impl<'a> ExtendedHarmonyChord<'a> {
     pub fn candidates(notes: &HashSet<&'a Note>) -> Vec<ExtendedHarmonyChord<'a>> {
-        ChordType::subchords(notes).iter()
+        let mut candidates: Vec<ExtendedHarmonyChord> = ChordType::subchords(notes).iter()
             .map(|(&root, subchords)| {
                 let chords: Vec<_> = subchords.iter().map(|chord_type| {
                     let extensions = chord_type.tensions(root, notes);
@@ -141,6 +141,10 @@ impl<'a> ExtendedHarmonyChord<'a> {
                 chords
             })
             .flat_map(|v| v)
-            .collect()
+            .collect();
+        candidates.sort_by(|a, b| {
+            a.extensions.len().cmp(&b.extensions.len()).reverse()
+        });
+        candidates
     }
 }
