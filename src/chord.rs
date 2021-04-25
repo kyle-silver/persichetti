@@ -1,8 +1,10 @@
 use std::collections::{HashMap, HashSet};
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 
 use crate::primitives::{Interval, Note, consts::*};
 
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash, EnumIter)]
 pub enum ChordType {
     Major,
     Minor,
@@ -25,7 +27,7 @@ impl ChordType {
     /// Given a collection of [`Note`] values, returns a list of potential chord qualities.
     /// This does not take into account any harmonic context or voicing, which may be crucial
     /// to correctly identifying the chord.
-    pub fn possible_chords(notes: HashSet<&Note>) -> HashMap<&Note, HashSet<ChordType>> {
+    pub fn subchords(notes: HashSet<&Note>) -> HashMap<&Note, HashSet<ChordType>> {
         notes.iter().map(|n| {
             let intervals = notes.iter().map(|other| {
                 Interval::from_notes(n, other)
@@ -35,49 +37,34 @@ impl ChordType {
     }
 
     fn from_interval_set(intervals: &HashSet<Interval>) -> HashSet<ChordType> {
-        let mut subchords = HashSet::new();
-        if intervals.contains(&MAJOR_THIRD) && intervals.contains(&PERFECT_FIFTH) {
-            subchords.insert(ChordType::Major);
+        Self::iter()
+            .filter(|chord_type| chord_type.is_subchord(intervals))
+            .collect()
+    }
+
+    pub fn intervals_from_root(&self) -> &[Interval] {
+        use ChordType::*;
+        match self {
+            Major => &[MAJOR_THIRD, PERFECT_FIFTH],
+            Minor => &[MINOR_THIRD, PERFECT_FIFTH],
+            Diminished => &[MINOR_THIRD, DIMINISHED_FIFTH],
+            Augmented => &[MAJOR_THIRD, AUGMENTED_FIFTH],
+            Sus2 => &[MAJOR_SECOND, PERFECT_FIFTH],
+            Sus4 => &[PERFECT_FOURTH, PERFECT_FIFTH],
+            Seventh => &[MAJOR_THIRD, MINOR_SEVENTH],
+            MinorSeventh => &[MINOR_THIRD, MINOR_SEVENTH],
+            MajorSeventh => &[MAJOR_THIRD, MAJOR_SEVENTH],
+            MinorMajorSeventh =>  &[MINOR_THIRD, MAJOR_SEVENTH],
+            SuspendedSeventh => &[PERFECT_FOURTH, MINOR_SEVENTH],
+            DiminishedSeventh => &[DIMINISHED_SEVENTH],
+            ItalianSixth => &[MAJOR_THIRD, AUGMENTED_SIXTH],
+            FrenchSixth => &[MAJOR_THIRD, AUGMENTED_FOURTH, AUGMENTED_SIXTH],
+            GermanSixth => &[MAJOR_THIRD, PERFECT_FIFTH, AUGMENTED_SIXTH],
         }
-        if intervals.contains(&MINOR_THIRD) && intervals.contains(&PERFECT_FIFTH) {
-            subchords.insert(ChordType::Minor);
-        }
-        if intervals.contains(&MINOR_THIRD) && intervals.contains(&DIMINISHED_FIFTH) {
-            subchords.insert(ChordType::Diminished);
-        }
-        if intervals.contains(&MAJOR_THIRD) && intervals.contains(&AUGMENTED_FIFTH) {
-            subchords.insert(ChordType::Augmented);
-        }
-        if intervals.contains(&MAJOR_SECOND) && intervals.contains(&PERFECT_FIFTH) {
-            subchords.insert(ChordType::Sus2);
-        }
-        if intervals.contains(&PERFECT_FOURTH) && intervals.contains(&PERFECT_FIFTH) {
-            subchords.insert(ChordType::Sus4);
-        }
-        if intervals.contains(&MINOR_SEVENTH) && intervals.contains(&MAJOR_THIRD) {
-            subchords.insert(ChordType::Seventh);
-        }
-        if intervals.contains(&MINOR_SEVENTH) && intervals.contains(&MINOR_THIRD) {
-            subchords.insert(ChordType::MinorSeventh);
-        }
-        if intervals.contains(&MAJOR_SEVENTH) && intervals.contains(&MINOR_THIRD) {
-            subchords.insert(ChordType::MinorMajorSeventh);
-        }
-        if intervals.contains(&MINOR_SEVENTH) && !intervals.contains(&MAJOR_THIRD) && !intervals.contains(&MINOR_THIRD) {
-            subchords.insert(ChordType::SuspendedSeventh);
-        }
-        if intervals.contains(&DIMINISHED_SEVENTH) {
-            subchords.insert(ChordType::DiminishedSeventh);
-        }
-        if intervals.contains(&MAJOR_THIRD) && intervals.contains(&AUGMENTED_SIXTH) {
-            subchords.insert(ChordType::ItalianSixth);
-        }
-        if intervals.contains(&MAJOR_THIRD) && intervals.contains(&AUGMENTED_FOURTH) && intervals.contains(&AUGMENTED_SIXTH) {
-            subchords.insert(ChordType::FrenchSixth);
-        }
-        if intervals.contains(&MAJOR_THIRD) && intervals.contains(&PERFECT_FIFTH) && intervals.contains(&AUGMENTED_SIXTH) {
-            subchords.insert(ChordType::GermanSixth);
-        }
-        subchords
+    }
+
+    pub fn is_subchord(&self, of: &HashSet<Interval>) -> bool {
+        let intervals = of;
+        self.intervals_from_root().iter().all(|interval| intervals.contains(interval))
     }
 }
