@@ -1,5 +1,5 @@
 //! This module provides notes and intervals for use in more complex applications, as well as macros for
-//! quicky initializing them.
+//! quickly initializing them.
 //! 
 //! # Note Shorthand
 //! Notes can be represented compactly as strings. [`Note`] names are not case-sensitive, but flat symbols and double-sharps are.
@@ -234,9 +234,9 @@ impl Display for NoteName {
 
 /// An accidental represents the degree of chromatic alteration applied to a [`NoteName`]. 
 ///
-/// Please note that `Flat(1)` represents a diminution of a single half-step, and `Sharp(1)` represents an augmentation
-/// of a single half-step. `Flat(0)` is equivalent to `Natural` and probably not useful to you. Double flats
-/// and double sharps are represented as `Flat(2)` and `Sharp(2)`.
+/// Please note that `Flat(0)` represents a diminution of a single half-step, and `Sharp(0)` represents an augmentation
+/// of a single half-step. Double flats and double sharps are represented as `Flat(1)` and `Sharp(1)`. These accidentals
+/// are *zero-indexed*.
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Accidental {
     Flat(usize),
@@ -248,18 +248,18 @@ impl Accidental {
     /// Converts a degree of chromatic alteration applied to a note into an accidental.
     pub fn from_isize(degree: isize) -> Accidental {
         match degree {
-            isize::MIN..=-1 => Accidental::Flat(-degree as usize),
+            isize::MIN..=-1 => Accidental::Flat((-degree as usize) - 1),
             0 => Accidental::Natural,
-            _ => Accidental::Sharp(degree as usize)
+            _ => Accidental::Sharp(degree as usize - 1)
         }
     }
 
     /// The number of half-steps up or down that an accidental represents
     pub fn chromatic_offset(&self) -> isize {
         match self {
-            Accidental::Flat(degree) => -1 * (*degree as isize),
+            Accidental::Flat(degree) => -1 * (*degree as isize + 1),
             Accidental::Natural => 0,
-            Accidental::Sharp(degree) => *degree as isize,
+            Accidental::Sharp(degree) => *degree as isize + 1,
         }
     }
 }
@@ -268,13 +268,16 @@ impl Display for Accidental {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Accidental::Flat(d) => {
-                let flats: String = std::iter::repeat("b").take(*d).collect();
+                // flats and sharps are zero-indexed
+                let d = d + 1;
+                let flats: String = std::iter::repeat("b").take(d).collect();
                 f.write_str(&flats)
             },
             Accidental::Natural => {
                 f.write_str("nat")
             },
             Accidental::Sharp(d) => {
+                let d = d + 1;
                 let prefix = if d % 2 == 1 { "#" } else { "" };
                 let remainder = std::iter::repeat("x").take(d/2).collect::<String>();
                 write!(f, "{}{}", prefix, remainder)
@@ -321,11 +324,11 @@ impl Note {
                     'x' => 2,
                     _ => panic!("invalid sharp character")
                 }).sum();
-                return Ok(Note::new(note_name, Accidental::Sharp(degree)));
+                return Ok(Note::new(note_name, Accidental::Sharp(degree - 1)));
             }
             if let Some(flat) = caps.name("flat") {
                 let degree = flat.as_str().len();
-                return Ok(Note::new(note_name, Accidental::Flat(degree)));
+                return Ok(Note::new(note_name, Accidental::Flat(degree - 1)));
             }
             Ok(Note::new(note_name, Accidental::Natural))
         } else {
@@ -489,20 +492,21 @@ impl Display for IntervalSize {
 
 /// Represents a chromatic alteration up or down that is applied to a pure [`IntervalSize`]. 
 ///
-/// Similar to [`Accidental`], using a zero with `Diminished` or `Augmented` is a no-op and probably not useful.
+/// Similar to [`Accidental`], `Diminished` or `Augmented` are *zero-indexed*.
 ///
 /// Due to a quirk of nomenclature, the value of `Diminished(n)` will vary depending on whether an interval
 /// is `Perfect` or `Major`. For example, a diminished fifth has an alteration of &minus;1, but a diminished
 /// third has an alteration of &minus;2.
+///
 /// 
 /// | Quality | Size | Chromatic Alteration |
 /// | --- | --- | --- |
 /// | Major | Second, Third, Sixth, Seventh | 0 |
 /// | Minor | Second, Third, Sixth, Seventh | &minus;1 |
 /// | Perfect | Unison, Fourth, Fifth | 0 |
-/// | Diminished(N) | Second, Third, Sixth, Seventh | &minus;1 &times; (N&plus;1) |
-/// | Diminished(N) | Unison, Fourth, Fifth | &minus;N |
-/// | Augmented(N) | All Intervals | (&plus;N)
+/// | Diminished(N) | Second, Third, Sixth, Seventh | &minus;(N&plus;2) |
+/// | Diminished(N) | Unison, Fourth, Fifth | &minus;(N&plus;1) |
+/// | Augmented(N) | All Intervals | N&plus;1 |
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum IntervalQuality {
     Diminished(usize),
@@ -521,17 +525,17 @@ impl IntervalQuality {
         match size {
             Unison | Fourth | Fifth => {
                 match delta {
-                    isize::MIN..=-1 => IntervalQuality::Diminished(-delta as usize),
+                    isize::MIN..=-1 => IntervalQuality::Diminished((-delta as usize) - 1),
                     0 => IntervalQuality::Perfect,
-                    _ => IntervalQuality::Augmented(delta as usize),
+                    _ => IntervalQuality::Augmented(delta as usize - 1),
                 }
             },
             Second | Third | Sixth | Seventh => {
                 match delta {
-                    isize::MIN..=-2 => IntervalQuality::Diminished((-delta - 1) as usize),
+                    isize::MIN..=-2 => IntervalQuality::Diminished((-delta - 1) as usize - 1),
                     -1 => IntervalQuality::Minor,
                     0 => IntervalQuality::Major,
-                    _ => IntervalQuality::Augmented(delta as usize)
+                    _ => IntervalQuality::Augmented(delta as usize - 1)
                 }
             }
         }
@@ -541,8 +545,8 @@ impl IntervalQuality {
 impl Display for IntervalQuality {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let token: String = match self {
-            IntervalQuality::Diminished(d) => std::iter::repeat("D").take(*d).collect(),
-            IntervalQuality::Augmented(d) => std::iter::repeat("A").take(*d).collect(),
+            IntervalQuality::Diminished(d) => std::iter::repeat("D").take(*d + 1).collect(),
+            IntervalQuality::Augmented(d) => std::iter::repeat("A").take(*d + 1).collect(),
             IntervalQuality::Minor => "m".to_string(),
             IntervalQuality::Major => "M".to_string(),
             IntervalQuality::Perfect => "P".to_string(),
@@ -592,8 +596,8 @@ impl Interval {
                 'M' => IntervalQuality::Major,
                 'm' => IntervalQuality::Minor,
                 'P' | 'p' => IntervalQuality::Perfect,
-                'A' | 'a' => IntervalQuality::Augmented(quality.len()),
-                'D' | 'd' => IntervalQuality::Diminished(quality.len()),
+                'A' | 'a' => IntervalQuality::Augmented(quality.len() - 1),
+                'D' | 'd' => IntervalQuality::Diminished(quality.len() - 1),
                 _ => panic!("Interval parsing regex is broken"),
             };
             let size = match size.as_str() {
@@ -629,14 +633,14 @@ impl Interval {
         // constructors for these classes
         match self.size {
             Unison | Fourth | Fifth => match self.quality {
-                IntervalQuality::Diminished(degree) => -1 * degree as isize,
-                IntervalQuality::Augmented(degree) => degree as isize,
+                IntervalQuality::Diminished(degree) => -1 * (degree + 1) as isize,
+                IntervalQuality::Augmented(degree) => degree as isize + 1,
                 IntervalQuality::Perfect => 0,
                 _ => panic!("Major or Minor quality applied to a perfect interval"),
             },
             _ => match self.quality {
-                IntervalQuality::Diminished(degree) => -1 - (degree as isize),
-                IntervalQuality::Augmented(degree) => degree as isize,
+                IntervalQuality::Diminished(degree) => -1 - ((degree + 1) as isize),
+                IntervalQuality::Augmented(degree) => degree as isize + 1,
                 IntervalQuality::Minor => -1,
                 IntervalQuality::Major => 0,
                 _ => panic!("Perfect quality applied to non-perfect interval"),
@@ -651,8 +655,8 @@ impl Interval {
     /// # use persichetti::primitives::{IntervalSize::*, IntervalQuality::*};
     /// # fn main() -> Result<(), IntervalError> {
     /// assert_eq!(7, Interval::new(Fifth, Perfect)?.chromatic_size());
-    /// assert_eq!(-1, Interval::new(Unison, Diminished(1))?.chromatic_size());
-    /// assert_eq!(-3, Interval::new(Second, Diminished(4))?.chromatic_size());
+    /// assert_eq!(-1, Interval::new(Unison, Diminished(0))?.chromatic_size());
+    /// assert_eq!(-3, Interval::new(Second, Diminished(3))?.chromatic_size());
     /// # Ok(())
     /// # }
     /// ```
@@ -678,6 +682,7 @@ impl Interval {
         let wk_distance = higher.name.chromatic_scale_degree() as isize - lower.name.chromatic_scale_degree() as isize;
         let wk_distance = wk_distance.rem_euclid(CHROMATIC_SCALE as isize) as isize;
         let chromatic_delta = -lower.accidental.chromatic_offset() + wk_distance + higher.accidental.chromatic_offset();
+        dbg!(chromatic_delta);
         let quality = IntervalQuality::from_chromatic_span(&size, chromatic_delta);
         Interval { size, quality }
     }

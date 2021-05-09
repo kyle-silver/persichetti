@@ -4,8 +4,8 @@ use persichetti::{civl, ivl, note, pnote, primitives::{Accidental::*, CompoundIn
 fn midi_conversions() -> Result<(), Error> {
     assert_eq!(21, PitchedNote::new(A, Natural, 0).midi_number());
     assert_eq!(24, PitchedNote::new(C, Natural, 1).midi_number());
-    assert_eq!(25, PitchedNote::new(C, Sharp(1), 1).midi_number());
-    assert_eq!(25, PitchedNote::new(D, Flat(1), 1).midi_number());
+    assert_eq!(25, PitchedNote::new(C, Sharp(0), 1).midi_number());
+    assert_eq!(25, PitchedNote::new(D, Flat(0), 1).midi_number());
     Ok(())
 }
 
@@ -21,12 +21,12 @@ fn interval_naming() -> Result<(), Error> {
 #[test]
 fn compound_interval() -> Result<(), Error> {
     assert_eq!(
-        CompoundInterval::from_interval(Interval::new(Unison, Diminished(1))?, 1), 
+        CompoundInterval::from_interval(Interval::new(Unison, Diminished(0))?, 1), 
         PitchedNote::from_str("G#5")?.compound_interval(&PitchedNote::from_str("G6")?)
     );
     println!("{} vs {}", PitchedNote::from_str("B5")?.midi_number(), PitchedNote::from_str("B#5")?.midi_number());
     assert_eq!(
-        CompoundInterval::from_interval(Interval::new(Unison, Augmented(1))?, 0), 
+        CompoundInterval::from_interval(Interval::new(Unison, Augmented(0))?, 0), 
         PitchedNote::from_str("B5")?.compound_interval(&PitchedNote::from_str("B#5")?)
     );
     Ok(())
@@ -57,13 +57,13 @@ fn compound_interval_shorthand() -> Result<(), Error> {
 #[test]
 fn pitched_note_macro() -> Result<(), Error> {
     assert_eq!(PitchedNote::new(C, Natural, 4), pnote!("C4")?);
-    assert_eq!(PitchedNote::from_str("Dbb7")?, pnote!(D, Flat(2), 7));
+    assert_eq!(PitchedNote::from_str("Dbb7")?, pnote!(D, Flat(1), 7));
     Ok(())
 }
 
 #[test]
 fn compound_interval_macro() -> Result<(), Error> {
     assert_eq!(CompoundInterval::new(Fifth, Perfect, 2)?, civl!("P5+2")?);
-    assert_eq!(CompoundInterval::from_str("DDU+1")?, civl!(Unison, Diminished(2), 1)?);
+    assert_eq!(CompoundInterval::from_str("DDU+1")?, civl!(Unison, Diminished(1), 1)?);
     Ok(())
 }
