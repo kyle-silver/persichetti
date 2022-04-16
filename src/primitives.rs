@@ -1,9 +1,10 @@
-//! This module provides notes and intervals for use in more complex applications, as well as macros for
-//! quickly initializing them.
-//! 
+//! This module provides notes and intervals for use in more complex
+//! applications, as well as macros for quickly initializing them.
+//!
 //! # Note Shorthand
-//! Notes can be represented compactly as strings. [`Note`] names are not case-sensitive, but flat symbols and double-sharps are.
-//! 
+//! Notes can be represented compactly as strings. [`Note`] names are not
+//! case-sensitive, but flat symbols and double-sharps are.
+//!
 //! | Symbol | Meaning | Example |
 //! | --- | --- | --- |
 //! | `A-G` | Note Name | `"a", "C", "f"` |
@@ -12,9 +13,10 @@
 //! | `#...` | One or more sharps | `"f#", "C##"` |
 //! | `x...` | One or more double-sharps | `"gx", "Dxx"` |
 //! | `#x..` | A triple+ sharp | `"C#x", "E#xx"` |
-//! 
-//! When initializing a [`PitchedNote`], the octave number can be appended to the end of the note name. Negative numbers are supported
-//! 
+//!
+//! When initializing a [`PitchedNote`], the octave number can be appended to
+//! the end of the note name. Negative numbers are supported
+//!
 //! ```rust
 //! # use persichetti::primitives::*;
 //! let b_flat_2 = PitchedNote::from_str("Bb2").unwrap();
@@ -22,9 +24,11 @@
 //! ```
 //!
 //! # Interval Shorthand
-//! [`Interval`]s have a string representation as well. Capital and lowercase M&rsquo;s are case-sensitive, but all other qualities are not.
-//! When an interval is doubly augmented or doubly diminished, it can be represented as `"aa5"` (doubly-augmented fifth) or `"dd3"
-//! (doubly-diminished third). This can be extended to an arbitrary number of augmentations or diminutions.
+//! [`Interval`]s have a string representation as well. Capital and lowercase
+//! M&rsquo;s are case-sensitive, but all other qualities are not. When an
+//! interval is doubly augmented or doubly diminished, it can be represented as
+//! `"aa5"` (doubly-augmented fifth) or `"dd3" (doubly-diminished third). This
+//! can be extended to an arbitrary number of augmentations or diminutions.
 //!
 //! | Symbol | Meaning | Example |
 //! | --- | --- | --- |
@@ -36,9 +40,10 @@
 //! | `D...` | Diminished by one or more degrees | `"D3", "dd2"` |
 //! | `M` | Major | `"M3", "M7"` |
 //! | `m` | Minor | `"m2", "m6` |
-//! 
-//! When initializing a [`CompoundInterval`], the octave number can be appended to the end of the interval with a `+N` for N octaves.
-//! Compound octaves must be zero or greater; a negative octave specifier is not allowed.
+//!
+//! When initializing a [`CompoundInterval`], the octave number can be appended
+//! to the end of the interval with a `+N` for N octaves. Compound octaves must
+//! be zero or greater; a negative octave specifier is not allowed.
 //!
 //! ```rust
 //! # use persichetti::primitives::*;
@@ -46,18 +51,24 @@
 //! let major_tenth = CompoundInterval::from_str("M3+1").unwrap();
 //! ```
 
-use std::{cmp::Ordering, fmt::Display, ops::{Add, Sub}, usize};
+use std::{
+    cmp::Ordering,
+    fmt::Display,
+    ops::{Add, Sub},
+    usize,
+};
 
 use derive_more::From;
-use regex::Regex;
 use lazy_static::lazy_static;
+use regex::Regex;
 
 use crate::{CHROMATIC_SCALE, C_ZERO_MIDI, DIATONIC_SCALE};
 
 /// Initialize a [`Note`]
 ///
-/// The constructor is either [`Note::from_str`] or [`Note::new`].
-/// With the string constructor, the return type will be a [`Result`] of [`Note`] and[`NoteError`].
+/// The constructor is either [`Note::from_str`] or [`Note::new`]. With the
+/// string constructor, the return type will be a [`Result`] of [`Note`]
+/// and[`NoteError`].
 #[macro_export]
 macro_rules! note {
     ($token:expr) => {
@@ -71,7 +82,8 @@ macro_rules! note {
 /// Initialize a [`PitchedNote`]
 ///
 /// The constructor is either [`PitchedNote::from_str`] or [`PitchedNote::new`].
-/// With the string constructor, the return type will be a [`Result`] of [`PitchedNote`] and [`NoteError`].
+/// With the string constructor, the return type will be a [`Result`] of
+/// [`PitchedNote`] and [`NoteError`].
 #[macro_export]
 macro_rules! pnote {
     ($token:expr) => {
@@ -84,8 +96,9 @@ macro_rules! pnote {
 
 /// Initialize an [`Interval`]
 ///
-/// The constructor is either the [`Interval::from_str`] or [`Interval::new`] constructor.
-/// With the string constructor, the return type will be a [`Result`] of [`Interval`] and [`IntervalError`].
+/// The constructor is either the [`Interval::from_str`] or [`Interval::new`]
+/// constructor. With the string constructor, the return type will be a
+/// [`Result`] of [`Interval`] and [`IntervalError`].
 #[macro_export]
 macro_rules! ivl {
     ($token:expr) => {
@@ -98,8 +111,10 @@ macro_rules! ivl {
 
 /// Initialize a [`CompoundInterval`]
 ///
-/// The constructor is either the [`CompoundInterval::from_str`] or [`CompoundInterval::new`] constructor.
-/// With the string constructor, the return type will be a [`Result`] of [`CompoundInterval`] and [`IntervalError`].
+/// The constructor is either the [`CompoundInterval::from_str`] or
+/// [`CompoundInterval::new`] constructor. With the string constructor, the
+/// return type will be a [`Result`] of [`CompoundInterval`] and
+/// [`IntervalError`].
 #[macro_export]
 macro_rules! civl {
     ($token:expr) => {
@@ -123,10 +138,17 @@ pub enum NoteError {
     InvalidNoteName,
 }
 
-/// The &ldquo;white keys&rdquo; of the piano; the seven note names used in western harmony.
+/// The &ldquo;white keys&rdquo; of the piano; the seven note names used in
+/// western harmony.
 #[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord, Hash)]
 pub enum NoteName {
-    C, D, E, F, G, A, B,
+    C,
+    D,
+    E,
+    F,
+    G,
+    A,
+    B,
 }
 
 impl NoteName {
@@ -140,11 +162,12 @@ impl NoteName {
             "e" => Ok(NoteName::E),
             "f" => Ok(NoteName::F),
             "g" => Ok(NoteName::G),
-            _ => Err(NoteError::InvalidNoteName)
+            _ => Err(NoteError::InvalidNoteName),
         }
     }
 
-    /// The placement of the note name in a C Major scale. C is zero and B is seven.
+    /// The placement of the note name in a C Major scale. C is zero and B is
+    /// seven.
     pub fn diatonic_scale_degree(&self) -> usize {
         match self {
             NoteName::C => 0,
@@ -157,7 +180,8 @@ impl NoteName {
         }
     }
 
-    /// The placement of the &ldquo;white key&rdquo; in a chromatic scale. C is zero and B is eleven.
+    /// The placement of the &ldquo;white key&rdquo; in a chromatic scale. C is
+    /// zero and B is eleven.
     pub fn chromatic_scale_degree(&self) -> usize {
         match self {
             NoteName::C => 0,
@@ -170,7 +194,8 @@ impl NoteName {
         }
     }
 
-    /// Get the corresponding &ldquo;white key&rdquo; for a given number. Supports values outside of the range 0&ndash;6.
+    /// Get the corresponding &ldquo;white key&rdquo; for a given number.
+    /// Supports values outside of the range 0&ndash;6.
     /// ```rust
     /// # use persichetti::primitives::*;
     /// assert_eq!(NoteName::D, NoteName::from_diatonic_scale_degree(1));
@@ -186,13 +211,14 @@ impl NoteName {
             4 => NoteName::G,
             5 => NoteName::A,
             6 => NoteName::B,
-            _ => panic!("Rust's Euclidian remainder function is broken")
+            _ => panic!("Rust's Euclidian remainder function is broken"),
         }
     }
 
     /// Calculate the [`IntervalSize`] between two note names
     pub fn interval_size(&self, note_above: &Self) -> IntervalSize {
-        let size = note_above.diatonic_scale_degree() as isize - self.diatonic_scale_degree() as isize;
+        let size =
+            note_above.diatonic_scale_degree() as isize - self.diatonic_scale_degree() as isize;
         let size = size.rem_euclid(DIATONIC_SCALE as isize);
         IntervalSize::from_diatonic_size(size as usize)
     }
@@ -201,8 +227,9 @@ impl NoteName {
 impl Add<&IntervalSize> for &NoteName {
     type Output = NoteName;
 
-    /// Simple &ldquo;white key only&rdquo; computations without any consideration for accidentals.
-    /// This is analogous to traversing a C Major scale.
+    /// Simple &ldquo;white key only&rdquo; computations without any
+    /// consideration for accidentals. This is analogous to traversing a C Major
+    /// scale.
     fn add(self, size: &IntervalSize) -> Self::Output {
         let degree = self.diatonic_scale_degree() + size.diatonic_size();
         NoteName::from_diatonic_scale_degree(degree as isize)
@@ -232,25 +259,28 @@ impl Display for NoteName {
     }
 }
 
-/// An accidental represents the degree of chromatic alteration applied to a [`NoteName`]. 
+/// An accidental represents the degree of chromatic alteration applied to a
+/// [`NoteName`].
 ///
-/// Please note that `Flat(0)` represents a diminution of a single half-step, and `Sharp(0)` represents an augmentation
-/// of a single half-step. Double flats and double sharps are represented as `Flat(1)` and `Sharp(1)`. These accidentals
-/// are *zero-indexed*.
+/// Please note that `Flat(0)` represents a diminution of a single half-step,
+/// and `Sharp(0)` represents an augmentation of a single half-step. Double
+/// flats and double sharps are represented as `Flat(1)` and `Sharp(1)`. These
+/// accidentals are *zero-indexed*.
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Accidental {
     Flat(usize),
     Natural,
-    Sharp(usize)
+    Sharp(usize),
 }
 
 impl Accidental {
-    /// Converts a degree of chromatic alteration applied to a note into an accidental.
+    /// Converts a degree of chromatic alteration applied to a note into an
+    /// accidental.
     pub fn from_isize(degree: isize) -> Accidental {
         match degree {
             isize::MIN..=-1 => Accidental::Flat((-degree as usize) - 1),
             0 => Accidental::Natural,
-            _ => Accidental::Sharp(degree as usize - 1)
+            _ => Accidental::Sharp(degree as usize - 1),
         }
     }
 
@@ -272,22 +302,21 @@ impl Display for Accidental {
                 let d = d + 1;
                 let flats: String = std::iter::repeat("b").take(d).collect();
                 f.write_str(&flats)
-            },
-            Accidental::Natural => {
-                f.write_str("nat")
-            },
+            }
+            Accidental::Natural => f.write_str("nat"),
             Accidental::Sharp(d) => {
                 let d = d + 1;
                 let prefix = if d % 2 == 1 { "#" } else { "" };
-                let remainder = std::iter::repeat("x").take(d/2).collect::<String>();
+                let remainder = std::iter::repeat("x").take(d / 2).collect::<String>();
                 write!(f, "{}{}", prefix, remainder)
             }
         }
     }
 }
 
-/// A note is represented as a pairing of a [`NoteName`] and an [`Accidental`]. These notes have no concept of
-/// absolute pitch or octave equivalence; if you need a note with octave information, use [`PitchedNote`].
+/// A note is represented as a pairing of a [`NoteName`] and an [`Accidental`].
+/// These notes have no concept of absolute pitch or octave equivalence; if you
+/// need a note with octave information, use [`PitchedNote`].
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Note {
     name: NoteName,
@@ -307,10 +336,14 @@ impl Note {
         &self.accidental
     }
 
-    /// Instantiate a `Note` using the shorthand documented in [`crate::primitives`]
+    /// Instantiate a `Note` using the shorthand documented in
+    /// [`crate::primitives`]
     pub fn from_str(note: &str) -> Result<Note, NoteError> {
         lazy_static! {
-            static ref RE: Regex =  Regex::new("^(?P<note>[A-Ga-g])((?P<sharp>(#+|x+|#x+))|(?P<flat>b+)|(?P<nat>nat))?$").unwrap();
+            static ref RE: Regex = Regex::new(
+                "^(?P<note>[A-Ga-g])((?P<sharp>(#+|x+|#x+))|(?P<flat>b+)|(?P<nat>nat))?$"
+            )
+            .unwrap();
         }
         if RE.is_match(note) == false {
             return Err(NoteError::InvalidNoteName);
@@ -319,11 +352,15 @@ impl Note {
         if let Some(note_name) = caps.name("note") {
             let note_name = NoteName::new(note_name.as_str())?;
             if let Some(sharp) = caps.name("sharp") {
-                let degree: usize = sharp.as_str().chars().map(|c| match c {
-                    '#' => 1,
-                    'x' => 2,
-                    _ => panic!("invalid sharp character")
-                }).sum();
+                let degree: usize = sharp
+                    .as_str()
+                    .chars()
+                    .map(|c| match c {
+                        '#' => 1,
+                        'x' => 2,
+                        _ => panic!("invalid sharp character"),
+                    })
+                    .sum();
                 return Ok(Note::new(note_name, Accidental::Sharp(degree - 1)));
             }
             if let Some(flat) = caps.name("flat") {
@@ -346,7 +383,8 @@ impl Note {
 impl Add<&Interval> for &Note {
     type Output = Note;
 
-    /// Adding an [`Interval`] I to a [`Note`] N will yeild a new note whose distance N is exactly I.
+    /// Adding an [`Interval`] I to a [`Note`] N will yeild a new note whose
+    /// distance N is exactly I.
     fn add(self, interval: &Interval) -> Self::Output {
         // get the "white key" of the output
         let name = &self.name + &interval.size;
@@ -413,8 +451,9 @@ pub enum IntervalSize {
 }
 
 impl IntervalSize {
-    /// The diatonic distance between the top note and the bottom note in an interval pair. A `Unison` has a 
-    /// distance of zero and a `Seventh` has a distance of 6.
+    /// The diatonic distance between the top note and the bottom note in an
+    /// interval pair. A `Unison` has a distance of zero and a `Seventh` has a
+    /// distance of 6.
     pub fn diatonic_size(&self) -> usize {
         match self {
             IntervalSize::Unison => 0,
@@ -427,8 +466,9 @@ impl IntervalSize {
         }
     }
 
-    /// The number of half-steps between the top note and the bottom note. This assumes that the intervals are
-    /// from a major scale, i.e. all intervals are either Major or Perfect
+    /// The number of half-steps between the top note and the bottom note. This
+    /// assumes that the intervals are from a major scale, i.e. all intervals
+    /// are either Major or Perfect
     pub fn chromatic_size(&self) -> usize {
         match self {
             IntervalSize::Unison => 0,
@@ -441,8 +481,9 @@ impl IntervalSize {
         }
     }
 
-    /// Construct an `IntervalSize` from a number representing a position in a diatonic scale. A unison is zero
-    /// and a seventh is six. Numbers outside of the range 0&ndash;6 are supported.
+    /// Construct an `IntervalSize` from a number representing a position in a
+    /// diatonic scale. A unison is zero and a seventh is six. Numbers outside
+    /// of the range 0&ndash;6 are supported.
     pub fn from_diatonic_size(size: usize) -> IntervalSize {
         match size % 7 {
             0 => IntervalSize::Unison,
@@ -456,8 +497,6 @@ impl IntervalSize {
         }
     }
 }
-
-
 
 impl Add<&IntervalSize> for &IntervalSize {
     type Output = IntervalSize;
@@ -490,15 +529,17 @@ impl Display for IntervalSize {
     }
 }
 
-/// Represents a chromatic alteration up or down that is applied to a pure [`IntervalSize`]. 
+/// Represents a chromatic alteration up or down that is applied to a pure
+/// [`IntervalSize`].
 ///
 /// Similar to [`Accidental`], `Diminished` or `Augmented` are *zero-indexed*.
 ///
-/// Due to a quirk of nomenclature, the value of `Diminished(n)` will vary depending on whether an interval
-/// is `Perfect` or `Major`. For example, a diminished fifth has an alteration of &minus;1, but a diminished
-/// third has an alteration of &minus;2.
+/// Due to a quirk of nomenclature, the value of `Diminished(n)` will vary
+/// depending on whether an interval is `Perfect` or `Major`. For example, a
+/// diminished fifth has an alteration of &minus;1, but a diminished third has
+/// an alteration of &minus;2.
 ///
-/// 
+///
 /// | Quality | Size | Chromatic Alteration |
 /// | --- | --- | --- |
 /// | Major | Second, Third, Sixth, Seventh | 0 |
@@ -517,29 +558,26 @@ pub enum IntervalQuality {
 }
 
 impl IntervalQuality {
-    /// Given the interval size, (how many note names are between the top and bottom) calculate an interval
-    /// quality that will make the [`Interval`] span the correct number of whole steps.
+    /// Given the interval size, (how many note names are between the top and
+    /// bottom) calculate an interval quality that will make the [`Interval`]
+    /// span the correct number of whole steps.
     pub fn from_chromatic_span(size: &IntervalSize, span: isize) -> IntervalQuality {
         use IntervalSize::*;
         let delta = span - size.chromatic_size() as isize;
         match size {
-            Unison | Fourth | Fifth => {
-                match delta {
-                    isize::MIN..=-1 => IntervalQuality::Diminished((-delta as usize) - 1),
-                    0 => IntervalQuality::Perfect,
-                    _ => IntervalQuality::Augmented(delta as usize - 1),
-                }
+            Unison | Fourth | Fifth => match delta {
+                isize::MIN..=-1 => IntervalQuality::Diminished((-delta as usize) - 1),
+                0 => IntervalQuality::Perfect,
+                _ => IntervalQuality::Augmented(delta as usize - 1),
             },
-            Second | Third | Sixth | Seventh => {
-                match delta {
-                    isize::MIN..=-2 => IntervalQuality::Diminished((-delta - 1) as usize - 1),
-                    -1 => IntervalQuality::Minor,
-                    0 => IntervalQuality::Major,
-                    _ => IntervalQuality::Augmented(delta as usize - 1)
-                }
-            }
+            Second | Third | Sixth | Seventh => match delta {
+                isize::MIN..=-2 => IntervalQuality::Diminished((-delta - 1) as usize - 1),
+                -1 => IntervalQuality::Minor,
+                0 => IntervalQuality::Major,
+                _ => IntervalQuality::Augmented(delta as usize - 1),
+            },
         }
-    } 
+    }
 }
 
 impl Display for IntervalQuality {
@@ -555,39 +593,45 @@ impl Display for IntervalQuality {
     }
 }
 
-/// An Interval is a combination of an [`IntervalSize`] and an [`IntervalQuality`]. It represents the relationship
-/// between two [`Note`]s.
+/// An Interval is a combination of an [`IntervalSize`] and an
+/// [`IntervalQuality`]. It represents the relationship between two [`Note`]s.
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Interval {
     size: IntervalSize,
     quality: IntervalQuality,
 }
 
-impl Interval {  
-    /// Instantiate a new `Interval`. If an invalid combination is entered, such as a major fourth or a perfect third,
-    /// the function will return an error.
+impl Interval {
+    /// Instantiate a new `Interval`. If an invalid combination is entered, such
+    /// as a major fourth or a perfect third, the function will return an error.
     pub fn new(size: IntervalSize, quality: IntervalQuality) -> Result<Interval, IntervalError> {
-        use IntervalSize::*;
         use IntervalQuality::*;
+        use IntervalSize::*;
         match quality {
             Major | Minor => match size {
-                Unison | Fourth | Fifth => return Err(IntervalError::InvalidQualityAndSizeCombination),
+                Unison | Fourth | Fifth => {
+                    return Err(IntervalError::InvalidQualityAndSizeCombination)
+                }
                 _ => {}
             },
             Perfect => match size {
-                Second | Third | Sixth | Seventh => return Err(IntervalError::InvalidQualityAndSizeCombination),
-                _ => {},
+                Second | Third | Sixth | Seventh => {
+                    return Err(IntervalError::InvalidQualityAndSizeCombination)
+                }
+                _ => {}
             },
             _ => {}
         };
         Ok(Interval { size, quality })
     }
 
-    /// Instantiate an `Interval` using the shorthand documented in [`crate::primitives`]. If the token cannot be
-    /// parsed or the desired interval is invalid, an error will be returned.
+    /// Instantiate an `Interval` using the shorthand documented in
+    /// [`crate::primitives`]. If the token cannot be parsed or the desired
+    /// interval is invalid, an error will be returned.
     pub fn from_str(input: &str) -> Result<Interval, IntervalError> {
         lazy_static! {
-            static ref RE: Regex = Regex::new("^(?P<quality>([MmPpDd]|[Aa]+|[Dd]+))(?P<size>([Uu]|\\d+))$").unwrap();
+            static ref RE: Regex =
+                Regex::new("^(?P<quality>([MmPpDd]|[Aa]+|[Dd]+))(?P<size>([Uu]|\\d+))$").unwrap();
         }
         let caps = RE.captures(input).unwrap();
         if let (Some(quality), Some(size)) = (caps.name("quality"), caps.name("size")) {
@@ -603,13 +647,19 @@ impl Interval {
             let size = match size.as_str() {
                 "U" | "u" => Ok(IntervalSize::Unison),
                 numeric => {
-                    let interval_size = numeric.parse::<usize>().map_err(|_| IntervalError::InvalidToken)?;
-                    let interval_size = if interval_size == 0 { 0 } else { interval_size - 1 };
+                    let interval_size = numeric
+                        .parse::<usize>()
+                        .map_err(|_| IntervalError::InvalidToken)?;
+                    let interval_size = if interval_size == 0 {
+                        0
+                    } else {
+                        interval_size - 1
+                    };
                     match interval_size {
                         0..=6 => Ok(IntervalSize::from_diatonic_size(interval_size)),
                         _ => Err(IntervalError::UnsupportedCompoundInterval),
                     }
-                },
+                }
             }?;
             Interval::new(size, quality)
         } else {
@@ -625,11 +675,12 @@ impl Interval {
         &self.quality
     }
 
-    /// The number of half-steps up or down that the [`IntervalQuality`] adjusts the [`IntervalSize`] by.
-    /// Keep in mind that the value of a `Diminished` interval depends on whether the size is Perfect or Major.
+    /// The number of half-steps up or down that the [`IntervalQuality`] adjusts
+    /// the [`IntervalSize`] by. Keep in mind that the value of a `Diminished`
+    /// interval depends on whether the size is Perfect or Major.
     fn chromatic_alteration(&self) -> isize {
         use IntervalSize::*;
-        // the panic conditions will be unreachable given the public 
+        // the panic conditions will be unreachable given the public
         // constructors for these classes
         match self.size {
             Unison | Fourth | Fifth => match self.quality {
@@ -644,12 +695,13 @@ impl Interval {
                 IntervalQuality::Minor => -1,
                 IntervalQuality::Major => 0,
                 _ => panic!("Perfect quality applied to non-perfect interval"),
-            }
+            },
         }
     }
 
-    /// The number of half steps between the top and bottom note in the interval. In the case of a diminished
-    /// unison, the output could be negative
+    /// The number of half steps between the top and bottom note in the
+    /// interval. In the case of a diminished unison, the output could be
+    /// negative
     /// ```rust
     /// # use persichetti::primitives::*;
     /// # use persichetti::primitives::{IntervalSize::*, IntervalQuality::*};
@@ -664,9 +716,11 @@ impl Interval {
         self.size.chromatic_size() as isize + self.chromatic_alteration()
     }
 
-    /// Given two [`Note`]s, calculate the interval that describes their relationship. While there is discourse around
-    /// the existence of a [diminished unison](https://www.youtube.com/watch?v=y5DxegJ5Hmw), this library acknowledges
-    /// its existence since there is no concept of an octave.
+    /// Given two [`Note`]s, calculate the interval that describes their
+    /// relationship. While there is discourse around the existence of a
+    /// [diminished unison](https://www.youtube.com/watch?v=y5DxegJ5Hmw), this
+    /// library acknowledges its existence since there is no concept of an
+    /// octave.
     /// ```rust
     /// # use persichetti::{ivl, note};
     /// # use persichetti::primitives::*;
@@ -679,19 +733,22 @@ impl Interval {
     pub fn from_notes(lower: &Note, higher: &Note) -> Interval {
         let size = NoteName::interval_size(&lower.name, &higher.name);
         // white key distance
-        let wk_distance = higher.name.chromatic_scale_degree() as isize - lower.name.chromatic_scale_degree() as isize;
+        let wk_distance = higher.name.chromatic_scale_degree() as isize
+            - lower.name.chromatic_scale_degree() as isize;
         let wk_distance = wk_distance.rem_euclid(CHROMATIC_SCALE as isize) as isize;
-        let chromatic_delta = -lower.accidental.chromatic_offset() + wk_distance + higher.accidental.chromatic_offset();
-        dbg!(chromatic_delta);
+        let chromatic_delta = -lower.accidental.chromatic_offset()
+            + wk_distance
+            + higher.accidental.chromatic_offset();
         let quality = IntervalQuality::from_chromatic_span(&size, chromatic_delta);
         Interval { size, quality }
     }
 
-    /// The inverse of an interval I can be defined as the interval I&prime; such that the sum of I and I&prime; is an octave
-    /// (or unison, in this case)
+    /// The inverse of an interval I can be defined as the interval I&prime;
+    /// such that the sum of I and I&prime; is an octave (or unison, in this
+    /// case)
     pub fn inverse(&self) -> Interval {
-        use IntervalSize::*;
         use IntervalQuality::*;
+        use IntervalSize::*;
         let size = match self.size {
             Unison => Unison,
             Second => Seventh,
@@ -708,8 +765,9 @@ impl Interval {
             Major => Minor,
             Perfect => Perfect,
         };
-        // we can bypass the validity checks in the constructor because an inverse will always be valid
-        // so long as the original interval is valid
+        // we can bypass the validity checks in the constructor because an
+        // inverse will always be valid so long as the original interval is
+        // valid
         Interval { size, quality }
     }
 }
@@ -719,7 +777,8 @@ impl Add<&Interval> for &Interval {
 
     fn add(self, rhs: &Interval) -> Self::Output {
         let size = &self.size + &rhs.size;
-        let span = (self.chromatic_size() + rhs.chromatic_size()).rem_euclid(CHROMATIC_SCALE as isize);
+        let span =
+            (self.chromatic_size() + rhs.chromatic_size()).rem_euclid(CHROMATIC_SCALE as isize);
         let quality = IntervalQuality::from_chromatic_span(&size, span);
         Interval { size, quality }
     }
@@ -729,7 +788,7 @@ impl Add<Interval> for Interval {
     type Output = Interval;
 
     fn add(self, rhs: Interval) -> Self::Output {
-       &self + &rhs
+        &self + &rhs
     }
 }
 
@@ -739,18 +798,22 @@ impl Display for Interval {
     }
 }
 
-/// A pitched note represents a [`Note`] in a definite octave. C<sub>4</sub> is &ldquo;middle C&rdquo; 
-/// and A<sub>0</sub> is the lowest note on a standard piano
+/// A pitched note represents a [`Note`] in a definite octave. C<sub>4</sub> is
+/// &ldquo;middle C&rdquo; and A<sub>0</sub> is the lowest note on a standard
+/// piano
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct PitchedNote {
     note: Note,
-    octave: isize
+    octave: isize,
 }
 
-/// Represents a [`Note`] in absolute pitch space, known as [Scientific Pitch](https://en.wikipedia.org/wiki/Scientific_pitch_notation).
-/// Each instance of the struct will contain a note and its corresponding octave. Middle C is C<sub>4</sub> in this implementation.
-/// Keep in mind that the letter name of the note is what determines its octave, i.e. C<sub>5</sub> and C&#9837;<sub>5</sub> are a 
-/// half step apart. Functions are also provided to convert between scientific pitch and MIDI numbering.
+/// Represents a [`Note`] in absolute pitch space, known as [Scientific
+/// Pitch](https://en.wikipedia.org/wiki/Scientific_pitch_notation). Each
+/// instance of the struct will contain a note and its corresponding octave.
+/// Middle C is C<sub>4</sub> in this implementation. Keep in mind that the
+/// letter name of the note is what determines its octave, i.e. C<sub>5</sub>
+/// and C&#9837;<sub>5</sub> are a half step apart. Functions are also provided
+/// to convert between scientific pitch and MIDI numbering.
 impl PitchedNote {
     pub fn from_note(note: Note, octave: isize) -> PitchedNote {
         PitchedNote { note, octave }
@@ -759,23 +822,29 @@ impl PitchedNote {
     pub fn new(name: NoteName, accidental: Accidental, octave: isize) -> PitchedNote {
         PitchedNote {
             note: Note::new(name, accidental),
-            octave
+            octave,
         }
     }
 
-    /// Instantiate using the same shorthand as a normal [`Note`] documented in [`crate::primitives`], but 
-    /// using an additional octave indicator.
+    /// Instantiate using the same shorthand as a normal [`Note`] documented in
+    /// [`crate::primitives`], but using an additional octave indicator.
     pub fn from_str(input: &str) -> Result<PitchedNote, NoteError> {
         // I don't feel like making a second regex...
-        let pitch_index = input.find(|c: char| c.is_ascii_digit() || c == '-').ok_or(NoteError::InvalidNoteName)?;
+        let pitch_index = input
+            .find(|c: char| c.is_ascii_digit() || c == '-')
+            .ok_or(NoteError::InvalidNoteName)?;
         let note = Note::from_str(&input[..pitch_index])?;
-        let octave = input[pitch_index..].parse().map_err(|_| NoteError::InvalidNoteName)?;
+        let octave = input[pitch_index..]
+            .parse()
+            .map_err(|_| NoteError::InvalidNoteName)?;
         Ok(PitchedNote { note, octave })
     }
 
-    /// Converts a [`PitchedNote`] to its corresponding number in MIDI, where A<sub>0</sub> (the lowest note
-    /// on a standard piano) is 21. The octave of the note is determined by its letter name, meaning for
-    /// example that C<sub>1</sub> is 24 and C&#9837;<sub>1</sub> is 23, even though B<sub>0</sub> is also 23.
+    /// Converts a [`PitchedNote`] to its corresponding number in MIDI, where
+    /// A<sub>0</sub> (the lowest note on a standard piano) is 21. The octave of
+    /// the note is determined by its letter name, meaning for example that
+    /// C<sub>1</sub> is 24 and C&#9837;<sub>1</sub> is 23, even though
+    /// B<sub>0</sub> is also 23.
     pub fn midi_number(&self) -> isize {
         let base = self.note.name.chromatic_scale_degree() as isize;
         let offset = self.note.accidental.chromatic_offset();
@@ -797,17 +866,22 @@ impl PitchedNote {
         Interval::from_notes(&lower.note, &higher.note)
     }
 
-    /// The interval between one `PitchedNote` and another, including how many octaves separate them. Notes in the
-    /// same octave (less than 12 half-steps apart) will have an octave of zero. Of note is that there is **no**
-    /// diminished octave in this naming system. The distance between, say, G&sharp;<sub>5</sub> and 
-    /// G&natural;<sub>6</sub> is indicated as a diminished unison with an octave of one. This was an intentional
-    /// choice, made because an octave is equivalent to a unison for analytical purposes.
+    /// The interval between one `PitchedNote` and another, including how many
+    /// octaves separate them. Notes in the same octave (less than 12 half-steps
+    /// apart) will have an octave of zero. Of note is that there is **no**
+    /// diminished octave in this naming system. The distance between, say,
+    /// G&sharp;<sub>5</sub> and G&natural;<sub>6</sub> is indicated as a
+    /// diminished unison with an octave of one. This was an intentional choice,
+    /// made because an octave is equivalent to a unison for analytical
+    /// purposes.
     pub fn compound_interval(&self, other: &Self) -> CompoundInterval {
         let interval = self.simple_interval(other);
         // calculate the octave using only the white keys
         let white_key_chromatic_distance = {
-            let lower_wk_midi = self.note.name.chromatic_scale_degree() as isize + (CHROMATIC_SCALE as isize * self.octave);
-            let higher_wk_midi = other.note.name.chromatic_scale_degree() as isize + (CHROMATIC_SCALE as isize * other.octave);
+            let lower_wk_midi = self.note.name.chromatic_scale_degree() as isize
+                + (CHROMATIC_SCALE as isize * self.octave);
+            let higher_wk_midi = other.note.name.chromatic_scale_degree() as isize
+                + (CHROMATIC_SCALE as isize * other.octave);
             (higher_wk_midi - lower_wk_midi).abs() as usize
         };
         let compound_octaves = white_key_chromatic_distance / CHROMATIC_SCALE;
@@ -833,7 +907,8 @@ impl Display for PitchedNote {
     }
 }
 
-/// A compound interval represents an [`Interval`] that may span more than one octave.
+/// A compound interval represents an [`Interval`] that may span more than one
+/// octave.
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct CompoundInterval {
     interval: Interval,
@@ -841,22 +916,33 @@ pub struct CompoundInterval {
 }
 
 impl CompoundInterval {
-    pub fn new(size: IntervalSize, quality: IntervalQuality, compound_octaves: usize) -> Result<Self, IntervalError> {
+    pub fn new(
+        size: IntervalSize,
+        quality: IntervalQuality,
+        compound_octaves: usize,
+    ) -> Result<Self, IntervalError> {
         let interval = Interval::new(size, quality)?;
-        Ok(CompoundInterval { interval, compound_octaves })
+        Ok(CompoundInterval {
+            interval,
+            compound_octaves,
+        })
     }
 
     pub fn from_interval(interval: Interval, compound_octaves: usize) -> Self {
-        CompoundInterval { interval, compound_octaves }
+        CompoundInterval {
+            interval,
+            compound_octaves,
+        }
     }
 
-    /// Instantiate using the same shorthand as a normal [`Interval`] documented in [`crate::primitives`], but 
-    /// using an additional octave indicator.
+    /// Instantiate using the same shorthand as a normal [`Interval`] documented
+    /// in [`crate::primitives`], but using an additional octave indicator.
     pub fn from_str(input: &str) -> Result<Self, IntervalError> {
         let components: Vec<&str> = input.split('+').collect();
         let interval = components.get(0).ok_or(IntervalError::InvalidToken)?;
         let interval = Interval::from_str(interval)?;
-        let compound_octaves = components.get(1)
+        let compound_octaves = components
+            .get(1)
             .ok_or(IntervalError::InvalidToken)?
             .parse()
             .map_err(|_| IntervalError::InvalidToken)?;
@@ -869,7 +955,7 @@ impl CompoundInterval {
 
     pub fn compound_octaves(&self) -> usize {
         self.compound_octaves
-    }    
+    }
 }
 
 impl Display for CompoundInterval {
